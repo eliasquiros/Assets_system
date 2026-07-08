@@ -35,6 +35,11 @@ El sistema mantiene un único cálculo de depreciación, que se usa tanto para r
  
 **RN-001.6 — El monto depreciado nunca puede superar el valor del activo**
 En ningún caso la suma de la depreciación acumulada de un activo puede ser mayor a su costo original, ni puede quedar en un valor negativo. Si por el cálculo detallado en días queda una pequeña diferencia acumulada a lo largo de los años, esa diferencia se ajusta únicamente en la última cuota, de forma que el total nunca se pase del límite.
+
+**RN-001.7 — Estado de depreciación del activo**
+Todo activo debe reflejar en todo momento uno de dos estados: **"depreciando"** (mientras su valor en libros sea mayor a cero) o **"totalmente depreciado"** (cuando su valor en libros llega exactamente a cero). Este cambio de estado ocurre automáticamente; ningún usuario debe marcarlo manualmente.
+
+Cuando un activo alcanza el estado "totalmente depreciado", su depreciación acumulada debe ser exactamente igual a su costo original — ni más, ni menos. *(Esta regla es una extensión directa de RN-001.6: el ajuste de redondeo en la última cuota es precisamente lo que garantiza que este punto se cumpla con exactitud.)*
  
 ---
  
