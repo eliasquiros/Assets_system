@@ -6,7 +6,9 @@ Este documento traduce las reglas de negocio (`RN-001`, `RN-002`) y las necesida
  
 Cada requerimiento tiene un identificador (`RF-XXX` para funcionales, `RL-XXX` para legales, `RS-XXX` para seguridad, `RP-XXX` para rendimiento) para mantener trazabilidad hacia el backlog y el código.
  
-Los puntos marcados como **Información importante** son detalles que se conciben fuera del requerimiento para no afectar el qué, sin embargo proporcionan información importante para su cumplimiento preciso.Asimismo, los puntos marcados como **⚠️ Supuesto** son decisiones razonables que se tomaron en base a la información actual del proyecto, pero pueden variar a lo largo del ciclo de su desarrollo. 
+Los puntos marcados como **Información importante** son detalles que se conciben fuera del requerimiento para no afectar el qué, sin embargo proporcionan información importante para su cumplimiento preciso.
+
+Asimismo, los puntos marcados como **⚠️ Supuesto** son decisiones razonables que se tomaron en base a la información actual del proyecto, pero pueden variar a lo largo del ciclo de su desarrollo. 
 
 ---
  
@@ -77,6 +79,7 @@ Ningún registro del historial puede editarse ni eliminarse una vez guardado. Si
 
 **RF-007.3 — Consulta de estado histórico y reportes por periodo**
 El usuario debe poder consultar el estado y la depreciación de un activo en cualquier fecha pasada dentro del periodo fiscal actual, así como generar reportes (incluyendo exportación a Excel) con corte a cualquier fecha, incluyendo el cierre de un periodo fiscal (30 de setiembre). Estos reportes se generan a partir del historial de movimientos, no de archivos guardados aparte.
+
 ---
  
 ## Requerimientos Legales
@@ -134,5 +137,5 @@ El rendimiento del sistema para una empresa cliente no debe verse afectado de fo
 
 ---
  
-## Resumen de puntos pendientes y supuestos a confirmar
+
  
