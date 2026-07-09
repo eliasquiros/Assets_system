@@ -1,0 +1,4 @@
+.field { display: flex; flex-direction: column; gap: 6px; }
+.label { font-size: 12px; font-weight: 600; color: var(--color-neutral-text); }
+.required { color: #C0504D; }
+.error { font-size: 11px; color: #C0504D; font-weight: 500; }
