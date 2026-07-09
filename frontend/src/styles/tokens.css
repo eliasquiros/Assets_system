@@ -1,0 +1,25 @@
+:root {
+  --color-bg: #EEF1F6;
+  --color-text: #0B2545;
+  --color-navy: #13315C;
+  --color-navy-dark: #0B2545;
+  --color-blue: #2D6CB5;
+  --color-border: #DDE3EC;
+  --color-border-light: #E7ECF3;
+  --color-muted: #5D6E86;
+  --color-muted-2: #8493A8;
+  --color-success-bg: #E4F1E9;
+  --color-success-text: #1F6B4A;
+  --color-success-border: #C4E0D0;
+  --color-warning-bg: #FBEBCF;
+  --color-warning-text: #8A5A12;
+  --color-warning-border: #F0D9AE;
+  --color-error-bg: #FBECEC;
+  --color-error-text: #8F3A38;
+  --color-error-border: #EAC9C9;
+  --color-neutral-bg: #EAEEF4;
+  --color-neutral-text: #41506A;
+  --color-neutral-border: #D5DCE7;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
