@@ -1,0 +1,8 @@
+.button {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  border: none; border-radius: 9px; padding: 10px 16px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.button:disabled { cursor: default; opacity: .75; }
+.primary { background: var(--color-navy); color: #fff; }
+.secondary { background: #fff; color: var(--color-muted); border: 1px solid var(--color-border); }
