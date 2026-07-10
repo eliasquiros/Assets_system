@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext'
 import styles from './AppHeader.module.css'
 
 export function AppHeader() {
-  const { empresa, usuario } = useAuth()
+  const { empresa, usuario, logout } = useAuth()
   return (
     <header className={styles.header}>
       <div className={styles.brand}>
@@ -28,6 +28,7 @@ export function AppHeader() {
           </div>
           <div className={styles.avatar}>{usuario.iniciales}</div>
         </div>
+        <button type="button" className={styles.logout} onClick={logout}>Salir</button>
       </div>
     </header>
   )

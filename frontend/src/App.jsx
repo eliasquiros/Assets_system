@@ -1,13 +1,19 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import { AppLayout } from './layout/AppLayout'
+import { LoginView } from './views/auth/LoginView'
 import { ActivosView } from './views/activos/ActivosView'
 import { ReportesView } from './views/reportes/ReportesView'
 import { HistorialView } from './views/historial/HistorialView'
 
 const queryClient = new QueryClient()
+
+function RequireAuth({ children }) {
+  const { isAuthenticated } = useAuth()
+  return isAuthenticated ? children : <Navigate to="/login" replace />
+}
 
 export function App() {
   return (
@@ -16,7 +22,8 @@ export function App() {
         <ToastProvider>
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<AppLayout />}>
+              <Route path="/login" element={<LoginView />} />
+              <Route path="/" element={<RequireAuth><AppLayout /></RequireAuth>}>
                 <Route index element={<Navigate to="/activos" replace />} />
                 <Route path="activos/*" element={<ActivosView />} />
                 <Route path="reportes" element={<ReportesView />} />

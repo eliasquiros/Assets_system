@@ -1,15 +1,36 @@
-import { createContext, useContext } from 'react'
+import { createContext, useCallback, useContext, useState } from 'react'
+import { login as loginRequest } from '../api/auth'
 
 const AuthContext = createContext(null)
+const STORAGE_KEY = 'af_session'
 
-const DEV_SESSION = {
-  token: import.meta.env.VITE_DEV_TOKEN || 'dev-token',
-  empresa: 'Comercial Rivera S.A.',
-  usuario: { nombre: 'Marcela Rivera S.', cargo: 'Contadora general', iniciales: 'MR' },
+function readStoredSession() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
 }
 
 export function AuthProvider({ children }) {
-  return <AuthContext.Provider value={DEV_SESSION}>{children}</AuthContext.Provider>
+  const [session, setSession] = useState(readStoredSession)
+
+  const login = useCallback(async (usuario, password) => {
+    const data = await loginRequest(usuario, password)
+    setSession(data)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    return data
+  }, [])
+
+  const logout = useCallback(() => {
+    setSession(null)
+    localStorage.removeItem(STORAGE_KEY)
+  }, [])
+
+  const value = { ...session, isAuthenticated: !!session, login, logout }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

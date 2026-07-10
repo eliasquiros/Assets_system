@@ -1,0 +1,37 @@
+.page {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-bg);
+  padding: 24px;
+}
+.card {
+  width: 380px; max-width: 100%;
+  background: #fff; border: 1px solid var(--color-border); border-radius: 12px;
+  padding: 32px 28px 26px;
+  display: flex; flex-direction: column; gap: 16px;
+  position: relative; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(11, 37, 69, .12);
+}
+.accent {
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: linear-gradient(90deg, var(--color-blue), var(--color-navy-dark));
+}
+.brand { display: flex; align-items: center; gap: 13px; margin-bottom: 4px; }
+.logo {
+  width: 40px; height: 40px; border-radius: 9px; flex: none;
+  background: linear-gradient(150deg, var(--color-blue), #1B4965);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-weight: 600; font-size: 16px; color: #fff;
+}
+.title { font-size: 15.5px; font-weight: 600; color: var(--color-text); }
+.subtitle { font-size: 10.5px; color: var(--color-muted); text-transform: uppercase; letter-spacing: .03em; }
+.input {
+  height: 40px; padding: 0 12px; border: 1px solid var(--color-border);
+  border-radius: 7px; font-size: 13.5px; width: 100%; font-family: var(--font-sans);
+}
+.input:focus-visible { outline: 2px solid var(--color-blue); outline-offset: 1px; }
+.error {
+  font-size: 12.5px; color: var(--color-error-text); background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border); border-radius: 7px; padding: 8px 11px; margin: 0;
+}
+.secure { font-size: 11px; font-weight: 600; color: #1F6B4A; text-align: center; margin: 4px 0 0; }

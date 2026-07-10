@@ -10,6 +10,7 @@ vi.mock('../api/activos')
 
 beforeEach(() => {
   vi.clearAllMocks()
+  localStorage.setItem('af_session', JSON.stringify({ token: 'dev-token', empresa: 'x', usuario: {} }))
 })
 
 function wrapper({ children }) {
