@@ -59,7 +59,7 @@ export function LoginView() {
 
         {error && <p className={styles.error}>{error}</p>}
 
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" className={styles.submitButton} disabled={isSubmitting}>
           {isSubmitting ? 'Ingresando…' : 'Ingresar'}
         </Button>
       </form>
