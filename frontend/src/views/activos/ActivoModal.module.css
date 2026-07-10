@@ -1,0 +1,6 @@
+.overlay { position: fixed; inset: 0; background: rgba(11,37,69,.42); z-index: 85; display: flex; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto; }
+.modal { width: 960px; max-width: 100%; background: #fff; border-radius: 12px; margin: auto; }
+.modal h2 { padding: 18px 22px; margin: 0; border-bottom: 1px solid var(--color-border-light); font-size: 16px; }
+.grid { padding: 22px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px 18px; }
+.grid input, .grid textarea, .grid select { height: 40px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 7px; font-size: 13.5px; width: 100%; }
+.actions { padding: 16px 22px; border-top: 1px solid var(--color-border-light); display: flex; justify-content: flex-end; gap: 10px; }
