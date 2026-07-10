@@ -51,4 +51,42 @@ describe('EditarActivoModal', () => {
     expect(showToast).toHaveBeenCalledWith('Activo AF-0001 actualizado correctamente', 'success')
     expect(onClose).toHaveBeenCalledTimes(1)
   })
+
+  it('blocks submission and shows a required-field error when a field is cleared', async () => {
+    const mutateAsync = vi.fn()
+    const showToast = vi.fn()
+    const onClose = vi.fn()
+    useActivo.mockReturnValue({ data: ACTIVO })
+    useEditarActivo.mockReturnValue({ mutateAsync })
+    useToast.mockReturnValue({ showToast })
+
+    renderModal(onClose)
+    await userEvent.clear(screen.getByDisplayValue('Laptop Dell'))
+    await userEvent.click(screen.getByText('Guardar cambios'))
+
+    expect(mutateAsync).not.toHaveBeenCalled()
+    expect(showToast).toHaveBeenCalledWith('Revisa los campos marcados', 'error')
+    expect(screen.getByText('Campo obligatorio')).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('blocks submission and shows a "mayor a cero" error when costo is set to an invalid value', async () => {
+    const mutateAsync = vi.fn()
+    const showToast = vi.fn()
+    const onClose = vi.fn()
+    useActivo.mockReturnValue({ data: ACTIVO })
+    useEditarActivo.mockReturnValue({ mutateAsync })
+    useToast.mockReturnValue({ showToast })
+
+    renderModal(onClose)
+    const costoInput = screen.getByDisplayValue('850000')
+    await userEvent.clear(costoInput)
+    await userEvent.type(costoInput, '0')
+    await userEvent.click(screen.getByText('Guardar cambios'))
+
+    expect(mutateAsync).not.toHaveBeenCalled()
+    expect(showToast).toHaveBeenCalledWith('Revisa los campos marcados', 'error')
+    expect(screen.getByText('Debe ser mayor a cero')).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+  })
 })
