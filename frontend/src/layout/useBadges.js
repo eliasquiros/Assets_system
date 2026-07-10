@@ -6,7 +6,7 @@ export function useBadges() {
   const { data: bajas } = useBajas()
   const pendientes = (bajas || []).filter((b) => b.estado === 'Pendiente').length
   return {
-    '/activos': activos ? String(activos.length) : null,
+    '/activos': activos && activos.length ? String(activos.length) : null,
     '/historial': pendientes > 0 ? String(pendientes) : null,
   }
 }

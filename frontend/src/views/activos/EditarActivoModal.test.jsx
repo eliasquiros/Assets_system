@@ -52,6 +52,21 @@ describe('EditarActivoModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
+  it('does not resubmit server-computed fields (dep, libros, estado)', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(ACTIVO)
+    useActivo.mockReturnValue({ data: { ...ACTIVO, libros: 255000, estado: 'Depreciando' } })
+    useEditarActivo.mockReturnValue({ mutateAsync })
+    useToast.mockReturnValue({ showToast: vi.fn() })
+
+    renderModal()
+    await userEvent.click(screen.getByText('Guardar cambios'))
+
+    const [{ datos }] = mutateAsync.mock.calls[0]
+    expect(datos).not.toHaveProperty('libros')
+    expect(datos).not.toHaveProperty('dep')
+    expect(datos).not.toHaveProperty('estado')
+  })
+
   it('blocks submission and shows a required-field error when a field is cleared', async () => {
     const mutateAsync = vi.fn()
     const showToast = vi.fn()

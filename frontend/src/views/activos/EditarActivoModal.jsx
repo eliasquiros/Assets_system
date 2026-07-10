@@ -35,7 +35,9 @@ export function EditarActivoModal({ onClose }) {
       return
     }
     try {
-      const datos = { ...form, costo: Number(form.costo), vidaUtil: Number(form.vidaUtil) }
+      const datos = ACTIVO_FIELD_DEFS.reduce((acc, f) => ({ ...acc, [f.key]: form[f.key] }), {})
+      datos.costo = Number(datos.costo)
+      datos.vidaUtil = Number(datos.vidaUtil)
       await editar.mutateAsync({ num, datos })
       showToast(`Activo ${form.num} actualizado correctamente`, 'success')
       onClose()

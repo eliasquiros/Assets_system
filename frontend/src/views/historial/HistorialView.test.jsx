@@ -42,6 +42,12 @@ describe('HistorialView', () => {
     expect(screen.getByText('Laptop HP')).toBeInTheDocument()
   })
 
+  it('shows an empty state when there are no bajas registered', () => {
+    useBajas.mockReturnValue({ data: [], isLoading: false, isError: false })
+    renderAt('/historial')
+    expect(screen.getByText('No hay retiros o bajas registrados.')).toBeInTheDocument()
+  })
+
   it('opens the RetiroModal at /historial/nueva', () => {
     useBajas.mockReturnValue({ data: [], isLoading: false, isError: false })
     renderAt('/historial/nueva')

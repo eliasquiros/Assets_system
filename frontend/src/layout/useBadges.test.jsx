@@ -26,4 +26,12 @@ describe('useBadges', () => {
     const { result } = renderHook(() => useBadges())
     expect(result.current['/historial']).toBeNull()
   })
+
+  it('shows null for activos when the list is empty, instead of "0"', () => {
+    useActivos.mockReturnValue({ data: [] })
+    useBajas.mockReturnValue({ data: [] })
+
+    const { result } = renderHook(() => useBadges())
+    expect(result.current['/activos']).toBeNull()
+  })
 })

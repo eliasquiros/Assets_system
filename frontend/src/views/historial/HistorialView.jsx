@@ -20,6 +20,9 @@ export function HistorialView() {
       </div>
       {isLoading && <Spinner size={24} />}
       {isError && <EmptyState message="No se pudo conectar con el servidor." />}
+      {!isLoading && !isError && (data || []).length === 0 && (
+        <EmptyState message="No hay retiros o bajas registrados." />
+      )}
       {!isLoading && !isError && (data || []).map((baja) => <BajaCard key={baja.id} baja={baja} now={now} />)}
       <Routes>
         <Route path="nueva" element={<RetiroModal onClose={() => navigate('/historial')} />} />
