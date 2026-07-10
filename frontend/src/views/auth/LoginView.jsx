@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { FormField } from '../../components/FormField'
 import { Button } from '../../components/Button'
 import styles from './LoginView.module.css'
 
@@ -40,33 +39,29 @@ export function LoginView() {
           </div>
         </div>
 
-        <FormField label="Usuario">
-          <input
-            className={styles.input}
-            value={usuario}
-            onChange={(e) => setUsuario(e.target.value)}
-            autoComplete="username"
-            aria-label="Usuario"
-          />
-        </FormField>
-        <FormField label="Contraseña">
-          <input
-            className={styles.input}
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            aria-label="Contraseña"
-          />
-        </FormField>
+        <input
+          className={styles.input}
+          value={usuario}
+          onChange={(e) => setUsuario(e.target.value)}
+          autoComplete="username"
+          placeholder="Usuario"
+          aria-label="Usuario"
+        />
+        <input
+          className={styles.input}
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          placeholder="Contraseña"
+          aria-label="Contraseña"
+        />
 
         {error && <p className={styles.error}>{error}</p>}
 
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Ingresando…' : 'Ingresar'}
         </Button>
-
-        <p className={styles.secure}>Conexión cifrada · HTTPS</p>
       </form>
     </div>
   )
