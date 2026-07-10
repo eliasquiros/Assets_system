@@ -19,6 +19,12 @@ function renderAt(path) {
 }
 
 describe('HistorialView', () => {
+  it('shows the list in a loading state while the query is pending', () => {
+    useBajas.mockReturnValue({ data: undefined, isLoading: true, isError: false })
+    renderAt('/historial')
+    expect(screen.getByRole('status')).toBeInTheDocument()
+  })
+
   it('shows a connection error when the query fails', () => {
     useBajas.mockReturnValue({ data: undefined, isLoading: false, isError: true })
     renderAt('/historial')
