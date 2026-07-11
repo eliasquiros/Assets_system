@@ -1,0 +1,6 @@
+.bar { display: flex; background: #fff; border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+.cell { flex: 1; padding: 15px 20px; border-right: 1px solid var(--color-border-light); }
+.cell:last-child { border-right: none; }
+.highlight { background: #F6F9FD; }
+.label { font-size: 10px; font-weight: 600; color: var(--color-muted-2); text-transform: uppercase; margin-bottom: 5px; }
+.value { font-size: 15px; font-weight: 600; color: var(--color-navy); }

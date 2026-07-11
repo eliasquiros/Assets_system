@@ -1,0 +1,8 @@
+.overlay { position: fixed; inset: 0; background: rgba(11,37,69,.42); z-index: 80; }
+.drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 480px; max-width: 92vw; background: #fff; overflow-y: auto; padding: 20px 22px; }
+.values { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+.ficha { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+.label { font-size: 10.5px; color: var(--color-muted-2); margin-bottom: 3px; }
+.histItem { padding-bottom: 16px; }
+.histTop { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 600; }
+.histDesc { font-size: 12px; color: var(--color-muted); margin: 3px 0 5px; }

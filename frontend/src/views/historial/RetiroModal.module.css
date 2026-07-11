@@ -1,0 +1,4 @@
+.overlay { position: fixed; inset: 0; background: rgba(11,37,69,.42); z-index: 85; display: flex; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto; }
+.modal { width: 540px; max-width: 100%; background: #fff; border-radius: 12px; margin: auto; padding: 22px; display: flex; flex-direction: column; gap: 16px; }
+.modal select, .modal textarea { padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 7px; font-size: 13.5px; width: 100%; }
+.actions { display: flex; justify-content: flex-end; gap: 10px; }

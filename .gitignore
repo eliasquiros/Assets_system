@@ -4,6 +4,12 @@ __pycache__/
 *.pyo
 *.sqlite3
 .env
+superpowers/
+# Frontend (Vite/React)
+node_modules/
+dist/
+dist-ssr/
+*.local
 
 # Instalacion del plugin GSD (get-shit-done)
 .claude/agents
