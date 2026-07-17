@@ -139,8 +139,7 @@ COMMENT ON TABLE catalogo_localizaciones IS
 CREATE TABLE catalogo_proveedores (
     id                      BIGSERIAL       PRIMARY KEY,
     nombre                  VARCHAR(200)    NOT NULL,
-    activo                  BOOLEAN         NOT NULL DEFAULT TRUE,
-
+    activo                  BOOLEAN         NOT NULL DEFAULT TRUE
 );
 
 CREATE UNIQUE INDEX uq_proveedor_nombre_norm

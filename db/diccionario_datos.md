@@ -19,11 +19,13 @@ Todo tipo de dato, restricción y motivo de diseño aquí descrito corresponde e
 | `id` | `BIGSERIAL` | PK | |
 | `nombre` | `VARCHAR(200)` | NOT NULL | Razón social de la empresa cliente |
 | `schema_name` | `VARCHAR(63)` | NOT NULL, UNIQUE | Nombre físico del schema de PostgreSQL (límite de 63 por ser el máximo de un identificador de Postgres) |
-| `dominio` | `VARCHAR(255)` | NOT NULL, UNIQUE | Dominio o identificador usado para enrutar cada solicitud a su schema |
+| `dominio` | `VARCHAR(255)` | NOT NULL, UNIQUE | Subdominio completo de la empresa (ej. `acme.sistema.com`), usado para enrutar cada solicitud a su schema |
 | `activa` | `BOOLEAN` | NOT NULL, default `true` | Baja lógica del cliente, nunca se borra la fila |
 | `fecha_alta` | `TIMESTAMPTZ` | NOT NULL, default `now()` | |
 
 **Por qué existe y por qué está en el schema público.** El sistema necesita saber a qué empresa pertenece una solicitud *antes* de poder decidir a qué schema dirigirla — por definición esa información no puede vivir dentro del schema de ninguna empresa individual (DA02). `schema_name` y `dominio` son la base del enrutamiento de `django-tenants` (DA01), que a su vez es la pieza que sostiene RS-002 (aislamiento total entre empresas) y RP-003 (que el rendimiento de una empresa no dependa de cuántas otras usan el sistema).
+
+**Por qué `dominio` guarda el subdominio completo y no solo un código corto.** DA16 decidió que cada empresa recibe un subdominio propio bajo un único dominio de marca (ej. `acme.sistema.com`), resuelto vía DNS wildcard, en vez de un dominio único con un selector de empresa previo al login. El middleware de `django-tenants` resuelve el schema directamente a partir del header `Host` de cada petición contra este campo — no hace falta ningún endpoint público adicional de "resolución de empresa", que sería una superficie de ataque nueva a proteger.
 
 ---
 
@@ -57,7 +59,6 @@ Todo tipo de dato, restricción y motivo de diseño aquí descrito corresponde e
 | `id` | `BIGSERIAL` | PK | |
 | `nombre` | `VARCHAR(150)` | NOT NULL, único normalizado (ver abajo) | Ej. "Bodega Central" |
 | `descripcion` | `TEXT` | NULL | |
-| `responsable` | `VARCHAR(150)` | NULL | |
 | `activa` | `BOOLEAN` | NOT NULL, default `true` | |
 
 **Por qué existe como catálogo y no como texto libre.** RF-001.1 define "área" como una ubicación/unidad organizativa definida libremente por cada empresa. Modelarla como catálogo (en vez de un campo de texto en `activo`) es lo que permite que RF-003.1 (filtrar y agrupar por área) y RF-003.2 (totales por área) den resultados consistentes: un texto libre repetido con pequeñas variaciones fragmentaría esos totales.
@@ -72,11 +73,9 @@ Todo tipo de dato, restricción y motivo de diseño aquí descrito corresponde e
 |---|---|---|---|
 | `id` | `BIGSERIAL` | PK | |
 | `nombre` | `VARCHAR(200)` | NOT NULL, único normalizado | |
-| `identificacion_fiscal` | `VARCHAR(30)` | NULL, UNIQUE | Cédula jurídica |
-| `contacto` | `TEXT` | NULL | |
 | `activo` | `BOOLEAN` | NOT NULL, default `true` | |
 
-**Por qué existe.** No corresponde a ningún requerimiento funcional explícito (no aparece en RF-001 a RF-007); es una normalización propuesta para trazabilidad de compras. Se decidió mantenerlo como catálogo separado (en vez de omitirlo) porque, si se incluye, debe seguir la misma regla que el resto de catálogos: nunca texto libre repetido en `activo`.
+**Por qué existe.** No corresponde a ningún requerimiento funcional explícito (no aparece en RF-001 a RF-007); es una normalización propuesta para trazabilidad de compras. Se decidió mantenerlo como catálogo separado (en vez de omitirlo) porque, si se incluye, debe seguir la misma regla que el resto de catálogos: nunca texto libre repetido en `activo`. Se simplificó a solo `nombre`/`activo`: `identificacion_fiscal` y `contacto` se quitaron por no ser necesarios para ningún requerimiento actual; si se necesitan más adelante (ej. para el reporte de auditoría), se agregan como columnas nuevas sin afectar el resto del esquema.
 
 ---
 
