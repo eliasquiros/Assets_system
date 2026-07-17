@@ -2,11 +2,6 @@
 -- Sistema de Gestion de Activos Fijos
 -- Esquema de base de datos -- PostgreSQL
 -- =====================================================================
--- Este archivo es la referencia fisica del modelo logico documentado en
--- db/diccionario_datos.md. Sigue las decisiones de arquitectura DA01-DA15
--- (docs/arquitectura/Decisiones_arquitectura.md): cada empresa cliente
--- vive en su propio schema de PostgreSQL (multitenencia via django-tenants);
--- unicamente `empresa` vive en el schema publico, compartido entre todas.
 --
 -- En produccion, la creacion real de cada schema de empresa la gestiona
 -- django-tenants a traves de las migraciones de Django, no este archivo.
@@ -122,7 +117,6 @@ CREATE TABLE catalogo_localizaciones (
     id              BIGSERIAL       PRIMARY KEY,
     nombre          VARCHAR(150)    NOT NULL,
     descripcion     TEXT,
-    responsable     VARCHAR(150),
     activa          BOOLEAN         NOT NULL DEFAULT TRUE
 );
 
@@ -145,11 +139,8 @@ COMMENT ON TABLE catalogo_localizaciones IS
 CREATE TABLE catalogo_proveedores (
     id                      BIGSERIAL       PRIMARY KEY,
     nombre                  VARCHAR(200)    NOT NULL,
-    identificacion_fiscal   VARCHAR(30),
-    contacto                TEXT,
     activo                  BOOLEAN         NOT NULL DEFAULT TRUE,
 
-    CONSTRAINT uq_proveedor_identificacion_fiscal UNIQUE (identificacion_fiscal)
 );
 
 CREATE UNIQUE INDEX uq_proveedor_nombre_norm
