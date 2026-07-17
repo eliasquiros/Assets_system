@@ -19,13 +19,21 @@ Todo tipo de dato, restricción y motivo de diseño aquí descrito corresponde e
 | `id` | `BIGSERIAL` | PK | |
 | `nombre` | `VARCHAR(200)` | NOT NULL | Razón social de la empresa cliente |
 | `schema_name` | `VARCHAR(63)` | NOT NULL, UNIQUE | Nombre físico del schema de PostgreSQL (límite de 63 por ser el máximo de un identificador de Postgres) |
-| `dominio` | `VARCHAR(255)` | NOT NULL, UNIQUE | Subdominio completo de la empresa (ej. `acme.sistema.com`), usado para enrutar cada solicitud a su schema |
 | `activa` | `BOOLEAN` | NOT NULL, default `true` | Baja lógica del cliente, nunca se borra la fila |
 | `fecha_alta` | `TIMESTAMPTZ` | NOT NULL, default `now()` | |
 
-**Por qué existe y por qué está en el schema público.** El sistema necesita saber a qué empresa pertenece una solicitud *antes* de poder decidir a qué schema dirigirla — por definición esa información no puede vivir dentro del schema de ninguna empresa individual (DA02). `schema_name` y `dominio` son la base del enrutamiento de `django-tenants` (DA01), que a su vez es la pieza que sostiene RS-002 (aislamiento total entre empresas) y RP-003 (que el rendimiento de una empresa no dependa de cuántas otras usan el sistema).
+**Por qué existe y por qué está en el schema público.** El sistema necesita saber a qué empresa pertenece una solicitud *antes* de poder decidir a qué schema dirigirla — por definición esa información no puede vivir dentro del schema de ninguna empresa individual (DA02). `schema_name` es la base del enrutamiento de `django-tenants` (DA01), que a su vez es la pieza que sostiene RS-002 (aislamiento total entre empresas) y RP-003 (que el rendimiento de una empresa no dependa de cuántas otras usan el sistema).
 
-**Por qué `dominio` guarda el subdominio completo y no solo un código corto.** DA16 decidió que cada empresa recibe un subdominio propio bajo un único dominio de marca (ej. `acme.sistema.com`), resuelto vía DNS wildcard, en vez de un dominio único con un selector de empresa previo al login. El middleware de `django-tenants` resuelve el schema directamente a partir del header `Host` de cada petición contra este campo — no hace falta ningún endpoint público adicional de "resolución de empresa", que sería una superficie de ataque nueva a proteger.
+### `domain`
+
+| Atributo | Tipo | Restricciones | Descripción |
+|---|---|---|---|
+| `id` | `BIGSERIAL` | PK | |
+| `domain` | `VARCHAR(253)` | NOT NULL, UNIQUE | Subdominio completo de la empresa (ej. `acme.sistema.com`), usado para enrutar cada solicitud a su schema |
+| `tenant_id` | `BIGINT` | NOT NULL, FK → `empresa.id` | Empresa a la que pertenece este dominio |
+| `is_primary` | `BOOLEAN` | NOT NULL, default `true` | Dominio principal de la empresa (django-tenants admite varios por tenant) |
+
+**Por qué existe como tabla propia y no como columna de `empresa`.** DA16 decidió que cada empresa recibe un subdominio propio bajo un único dominio de marca (ej. `acme.sistema.com`), resuelto vía DNS wildcard, en vez de un dominio único con un selector de empresa previo al login. `django-tenants` exige modelar el dominio como tabla separada (`TENANT_DOMAIN_MODEL`) para poder soportar varios dominios por tenant; el middleware resuelve el schema directamente a partir del header `Host` de cada petición contra esta tabla — no hace falta ningún endpoint público adicional de "resolución de empresa", que sería una superficie de ataque nueva a proteger.
 
 ---
 

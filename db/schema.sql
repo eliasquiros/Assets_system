@@ -37,12 +37,10 @@ CREATE TABLE public.empresa (
     id              BIGSERIAL       PRIMARY KEY,
     nombre          VARCHAR(200)    NOT NULL,
     schema_name     VARCHAR(63)     NOT NULL,
-    dominio         VARCHAR(255)    NOT NULL,
     activa          BOOLEAN         NOT NULL DEFAULT TRUE,
     fecha_alta      TIMESTAMPTZ     NOT NULL DEFAULT now(),
 
-    CONSTRAINT uq_empresa_schema_name UNIQUE (schema_name),
-    CONSTRAINT uq_empresa_dominio UNIQUE (dominio)
+    CONSTRAINT uq_empresa_schema_name UNIQUE (schema_name)
 );
 
 COMMENT ON TABLE public.empresa IS
@@ -54,8 +52,15 @@ COMMENT ON TABLE public.empresa IS
 COMMENT ON COLUMN public.empresa.schema_name IS
     'Nombre fisico del schema de PostgreSQL de esta empresa (usado por django-tenants).';
 
-COMMENT ON COLUMN public.empresa.dominio IS
-    'Dominio o identificador usado para enrutar cada solicitud a su schema (DA01).';
+-- Tabla de dominios de django-tenants: enruta cada Host al schema de su empresa.
+-- Antes 'dominio' era columna de empresa; django-tenants exige tabla propia.
+CREATE TABLE public.domain (
+    id          BIGSERIAL    PRIMARY KEY,
+    domain      VARCHAR(253) NOT NULL,
+    tenant_id   BIGINT       NOT NULL REFERENCES public.empresa(id) ON DELETE CASCADE,
+    is_primary  BOOLEAN      NOT NULL DEFAULT TRUE,
+    CONSTRAINT uq_domain_domain UNIQUE (domain)
+);
 
 
 -- =====================================================================
