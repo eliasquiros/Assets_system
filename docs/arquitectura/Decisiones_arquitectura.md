@@ -213,3 +213,19 @@ flowchart TB
 **Justificación.** Combinar ambas condiciones en un solo campo introduciría un tercer valor no contemplado por RN001.7, y obligaría a mantener sincronizados dos conceptos independientes desde dos apps distintas. Mantenerlos separados elimina esa fuente de inconsistencia.
 
 **Trazabilidad.** RN001.7, RN002.5.
+
+## DA16. Enrutamiento del navegador al schema de su empresa mediante subdominio propio
+
+**Contexto.** DA01 define que el enrutamiento hacia el schema correcto ocurre "según el dominio... asociado a cada solicitud", pero no especifica cómo el navegador del usuario llega a ese dominio antes de ver la pantalla de inicio de sesión, dado que RF-006 no contempla ningún paso de selección de empresa previo al usuario/contraseña.
+
+**Decisión.** Cada empresa cliente recibe un subdominio propio bajo un único dominio de marca (ej. `acme.sistema.com`, `beta.sistema.com`), resuelto mediante un registro DNS wildcard (`*.sistema.com`) y un certificado TLS wildcard. El campo `dominio` de la tabla `empresa` (`db/schema.sql`) guarda ese subdominio completo. El usuario navega directamente a la URL de su empresa; no existe pantalla de selección de empresa antes del formulario de usuario/contraseña.
+
+**Justificación.** El middleware de `django-tenants` resuelve el schema a partir del header `Host` de la petición, antes de que esta llegue a cualquier vista — incluida la de login. Con un subdominio por empresa, esa resolución ocurre de forma automática y nativa a la librería, sin necesitar un endpoint público adicional que traduzca un código de empresa a un dominio (superficie de ataque que sí requeriría el patrón alternativo de dominio único con selector). Tampoco requiere comprar un dominio por empresa: los subdominios se generan bajo el dominio de marca ya existente, sin costo ni gestión de DNS adicional en cada alta de cliente.
+
+**Consecuencia de seguridad relevante.** Como resultado no buscado pero deseable, la sesión guardada en el navegador (`localStorage`) queda aislada por origen: una sesión iniciada en `acme.sistema.com` no es legible por código ejecutándose en `beta.sistema.com`. Esto refuerza RS-002 con una capa adicional a nivel de navegador, sin necesidad de lógica extra en la aplicación.
+
+**Consecuencia operativa.** Si un usuario intenta iniciar sesión en el subdominio de una empresa distinta a la suya, la consulta de `usuario` corre exclusivamente contra el schema ya fijado por el middleware antes del login; el sistema nunca busca el usuario en otro schema. El mensaje de error debe ser genérico e idéntico tanto si el usuario no existe en ese schema como si la contraseña es incorrecta, para no filtrar en qué empresa existe una cuenta (RS-002). El frontend puede mostrar el subdominio actual en la pantalla de login como ayuda de autoverificación, ya que ese dato no revela nada que la URL visible en el navegador no revele ya.
+
+**Alternativas descartadas.** Dominio único con un selector de empresa previo al login: evita el DNS wildcard, pero introduce un endpoint público nuevo (resolución de empresa) que hay que proteger contra enumeración de clientes, y no es el patrón de uso por defecto de `django-tenants`.
+
+**Trazabilidad.** DA01, DA02, DA03, RS-002, RF-006.1.
