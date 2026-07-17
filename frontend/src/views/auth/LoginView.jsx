@@ -39,6 +39,13 @@ export function LoginView() {
           </div>
         </div>
 
+        {/* Cada empresa tiene su propio subdominio (DA16); mostrarlo aquí deja
+            que el usuario confirme, antes de escribir su contraseña, que está
+            en la URL de su propia empresa y no en la de otra. */}
+        <p className={styles.tenantHint}>
+          Ingresando en <strong>{window.location.host}</strong>
+        </p>
+
         <input
           className={styles.input}
           value={usuario}
@@ -57,7 +64,12 @@ export function LoginView() {
           aria-label="Contraseña"
         />
 
-        {error && <p className={styles.error}>{error}</p>}
+        {error && (
+          <div className={styles.error}>
+            <p className={styles.errorMessage}>{error}</p>
+            <p className={styles.errorHint}>¿Seguro que es la dirección de tu empresa? Verifica la URL.</p>
+          </div>
+        )}
 
         <Button type="submit" className={styles.submitButton} disabled={isSubmitting}>
           {isSubmitting ? 'Ingresando…' : 'Ingresar'}
