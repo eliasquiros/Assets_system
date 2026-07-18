@@ -58,6 +58,7 @@ TENANT_APPS = [
     'django.contrib.auth',
     'rest_framework_simplejwt.token_blacklist',  # per-tenant: FK a accounts.Usuario
     'accounts',                  # usuarios + auth (schema de cada empresa)
+    'assets',                    # activos y catalogos (schema de cada empresa)
 ]
 
 INSTALLED_APPS = list(SHARED_APPS) + [a for a in TENANT_APPS if a not in SHARED_APPS]
