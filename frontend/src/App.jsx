@@ -11,7 +11,8 @@ import { HistorialView } from './views/historial/HistorialView'
 const queryClient = new QueryClient()
 
 function RequireAuth({ children }) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, loading } = useAuth()
+  if (loading) return null
   return isAuthenticated ? children : <Navigate to="/login" replace />
 }
 

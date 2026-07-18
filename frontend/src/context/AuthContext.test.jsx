@@ -1,69 +1,59 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AuthProvider, useAuth } from './AuthContext'
-import { login as loginRequest } from '../api/auth'
+import { login as loginRequest, me as meRequest, logout as logoutRequest } from '../api/auth'
 
 vi.mock('../api/auth')
 
-const SESSION = {
-  token: 't1', empresa: 'Comercial Rivera S.A.',
-  usuario: { nombre: 'Marcela Rivera S.', cargo: 'Contadora general', iniciales: 'MR' },
-}
-
 function Consumer() {
-  const { isAuthenticated, token, empresa, usuario, login, logout } = useAuth()
-  if (!isAuthenticated) {
-    return <button onClick={() => login('mrivera', 'secreta123')}>entrar</button>
-  }
+  const { isAuthenticated, loading, username, empresa, login, logout } = useAuth()
+  if (loading) return <span>cargando</span>
+  if (!isAuthenticated) return <button onClick={() => login('ana', 'secreta123')}>entrar</button>
   return (
     <div>
-      <span>{token} · {empresa} · {usuario.nombre}</span>
+      <span>{username} · {empresa}</span>
       <button onClick={logout}>salir</button>
     </div>
   )
 }
 
 describe('AuthContext', () => {
-  beforeEach(() => localStorage.clear())
   afterEach(() => vi.clearAllMocks())
 
-  it('starts unauthenticated when there is no stored session', () => {
+  it('arranca sin sesión cuando /me responde 401', async () => {
+    meRequest.mockRejectedValue(new Error('401'))
     render(<AuthProvider><Consumer /></AuthProvider>)
-    expect(screen.getByText('entrar')).toBeInTheDocument()
+    expect(await screen.findByText('entrar')).toBeInTheDocument()
   })
 
-  it('provides the session returned by login and persists it', async () => {
-    loginRequest.mockResolvedValue(SESSION)
+  it('restaura la sesión desde /me al montar', async () => {
+    meRequest.mockResolvedValue({ username: 'ana', empresa: 'Demo' })
     render(<AuthProvider><Consumer /></AuthProvider>)
-
-    await userEvent.click(screen.getByText('entrar'))
-
-    expect(await screen.findByText('t1 · Comercial Rivera S.A. · Marcela Rivera S.')).toBeInTheDocument()
-    expect(JSON.parse(localStorage.getItem('af_session'))).toEqual(SESSION)
+    expect(await screen.findByText('ana · Demo')).toBeInTheDocument()
   })
 
-  it('restores a previously stored session on mount', () => {
-    localStorage.setItem('af_session', JSON.stringify(SESSION))
-    render(<AuthProvider><Consumer /></AuthProvider>)
-    expect(screen.getByText('t1 · Comercial Rivera S.A. · Marcela Rivera S.')).toBeInTheDocument()
-  })
-
-  it('logout clears the session and storage', async () => {
-    localStorage.setItem('af_session', JSON.stringify(SESSION))
+  it('login guarda la sesión devuelta por la API (sin token en cliente)', async () => {
+    meRequest.mockRejectedValue(new Error('401'))
+    loginRequest.mockResolvedValue({ username: 'ana', empresa: 'Demo' })
     render(<AuthProvider><Consumer /></AuthProvider>)
 
-    await userEvent.click(screen.getByText('salir'))
+    await userEvent.click(await screen.findByText('entrar'))
 
-    expect(screen.getByText('entrar')).toBeInTheDocument()
-    expect(localStorage.getItem('af_session')).toBeNull()
+    expect(await screen.findByText('ana · Demo')).toBeInTheDocument()
   })
 
-  it('throws when useAuth is called outside the provider', () => {
-    function Broken() {
-      useAuth()
-      return null
-    }
+  it('logout limpia la sesión', async () => {
+    meRequest.mockResolvedValue({ username: 'ana', empresa: 'Demo' })
+    logoutRequest.mockResolvedValue(null)
+    render(<AuthProvider><Consumer /></AuthProvider>)
+
+    await userEvent.click(await screen.findByText('salir'))
+    await waitFor(() => expect(screen.getByText('entrar')).toBeInTheDocument())
+  })
+
+  it('lanza si useAuth se usa fuera del provider', () => {
+    function Broken() { useAuth(); return null }
     expect(() => render(<Broken />)).toThrow('useAuth debe usarse dentro de AuthProvider')
   })
 })
