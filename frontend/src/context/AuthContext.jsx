@@ -18,6 +18,15 @@ export function AuthProvider({ children }) {
     return () => { active = false }
   }, [])
 
+  // Si el refresh transparente de apiFetch también falla (refresh cookie
+  // vencida o revocada), client.js dispara este evento para que dejemos de
+  // mostrar al usuario como autenticado aunque el estado local aún lo diga.
+  useEffect(() => {
+    function handleExpired() { setSession(null) }
+    window.addEventListener('auth:expired', handleExpired)
+    return () => window.removeEventListener('auth:expired', handleExpired)
+  }, [])
+
   const login = useCallback(async (usuario, password) => {
     const data = await loginRequest(usuario, password)
     setSession(data)

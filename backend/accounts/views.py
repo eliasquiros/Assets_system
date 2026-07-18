@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import connection
 from django.middleware.csrf import get_token
 from rest_framework import status
@@ -53,30 +54,45 @@ class LoginView(APIView):
 
 
 class RefreshView(APIView):
-    """POST /api/auth/refresh/ — rota el access token desde la cookie refresh."""
+    """POST /api/auth/refresh/ — rota el access Y el refresh token: el
+    refresh usado se invalida (blacklist) y se emite uno nuevo, para que un
+    refresh token robado deje de servir en cuanto el usuario legitimo
+    refresca su sesion."""
     permission_classes = [AllowAny]
     authentication_classes = []
 
     def post(self, request):
-        raw = request.COOKIES.get('refresh')
+        raw = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
         if not raw:
             return Response({'detail': 'Sesión no encontrada'}, status=status.HTTP_401_UNAUTHORIZED)
         try:
-            refresh = RefreshToken(raw)
-        except TokenError:
+            old_refresh = RefreshToken(raw)
+            user = Usuario.objects.get(pk=old_refresh['user_id'])
+        except (TokenError, Usuario.DoesNotExist):
             response = Response({'detail': 'Sesión expirada'}, status=status.HTTP_401_UNAUTHORIZED)
             clear_auth_cookies(response)
             return response
+
+        old_refresh.blacklist()
+        new_refresh = RefreshToken.for_user(user)
         response = Response({'detail': 'ok'})
-        set_auth_cookies(response, refresh.access_token, refresh)
+        set_auth_cookies(response, new_refresh.access_token, new_refresh)
         return response
 
 
 class LogoutView(APIView):
+    """POST /api/auth/logout/ — limpia las cookies y revoca el refresh token
+    del lado del servidor (blacklist), no solo del lado del cliente."""
     permission_classes = [AllowAny]
     authentication_classes = []
 
     def post(self, request):
+        raw = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
+        if raw:
+            try:
+                RefreshToken(raw).blacklist()
+            except TokenError:
+                pass
         response = Response(status=status.HTTP_204_NO_CONTENT)
         clear_auth_cookies(response)
         return response

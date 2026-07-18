@@ -14,8 +14,28 @@ function getCookie(name) {
 }
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+// Estas rutas nunca disparan un refresh silencioso: login es el propio
+// bootstrap (su 401 significa credenciales invalidas, no sesion vencida),
+// y refresh/logout no deben reintentarse contra si mismos.
+const NO_REFRESH_RETRY = new Set(['/auth/login/', '/auth/refresh/', '/auth/logout/'])
 
-export async function apiFetch(path, { method = 'GET', body, headers } = {}) {
+let refreshPromise = null
+
+function refreshSession() {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${BASE_URL}/auth/refresh/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') || '' },
+      credentials: 'include',
+    })
+      .then((r) => r.ok)
+      .catch(() => false)
+      .finally(() => { refreshPromise = null })
+  }
+  return refreshPromise
+}
+
+export async function apiFetch(path, { method = 'GET', body, headers, _retry = true } = {}) {
   const finalHeaders = { 'Content-Type': 'application/json', ...(headers || {}) }
 
   // En métodos que cambian estado, reenviamos el token CSRF legible. El JWT
@@ -38,12 +58,25 @@ export async function apiFetch(path, { method = 'GET', body, headers } = {}) {
   }
 
   if (!response.ok) {
+    // El access token vive solo 15 min; si expiro, intentamos refrescarlo
+    // una vez de forma transparente antes de rendirnos (el refresh cookie
+    // dura 7 dias). Nunca se reintenta para login/refresh/logout mismos.
+    if (response.status === 401 && _retry && !NO_REFRESH_RETRY.has(path)) {
+      const refreshed = await refreshSession()
+      if (refreshed) {
+        return apiFetch(path, { method, body, headers, _retry: false })
+      }
+    }
+
     let message = `Error ${response.status}`
     try {
       const errorBody = await response.json()
       if (errorBody && errorBody.detail) message = errorBody.detail
     } catch {
       // sin cuerpo JSON: se mantiene el mensaje genérico
+    }
+    if (response.status === 401 && !NO_REFRESH_RETRY.has(path)) {
+      window.dispatchEvent(new Event('auth:expired'))
     }
     throw new ApiError(message, response.status)
   }

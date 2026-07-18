@@ -76,6 +76,31 @@ class AuthFlowTest(TenantTestCase):
             # El 4o intento supera el limite (DA08).
             self.assertEqual(self._login(password='mala').status_code, 429)
 
+    def test_refresh_rota_el_token_e_invalida_el_anterior(self):
+        self._login()
+        old_refresh = self.client.cookies['refresh'].value
+
+        r1 = self.client.post('/api/auth/refresh/', HTTP_HOST=self.host)
+        self.assertEqual(r1.status_code, 200)
+        new_refresh = self.client.cookies['refresh'].value
+        self.assertNotEqual(old_refresh, new_refresh)
+
+        # El refresh viejo, ya rotado, no debe volver a servir (RS-002/DA08:
+        # limita la ventana de un token robado).
+        self.client.cookies['refresh'] = old_refresh
+        r2 = self.client.post('/api/auth/refresh/', HTTP_HOST=self.host)
+        self.assertEqual(r2.status_code, 401)
+
+    def test_logout_invalida_el_refresh_token(self):
+        self._login()
+        refresh_value = self.client.cookies['refresh'].value
+
+        self.client.post('/api/auth/logout/', HTTP_HOST=self.host)
+
+        self.client.cookies['refresh'] = refresh_value
+        r = self.client.post('/api/auth/refresh/', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 401)
+
 
 class AislamientoEntreEmpresasTest(TenantTestCase):
     """RS-002: un usuario de la empresa A no puede entrar por el subdominio de B."""

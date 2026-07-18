@@ -56,6 +56,7 @@ SHARED_APPS = [
 TENANT_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.auth',
+    'rest_framework_simplejwt.token_blacklist',  # per-tenant: FK a accounts.Usuario
     'accounts',                  # usuarios + auth (schema de cada empresa)
 ]
 
@@ -184,6 +185,10 @@ AUTH_COOKIE_REFRESH_PATH = '/api/auth'  # el refresh solo se envia a los endpoin
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SECURE = not DEBUG
+# En produccion, usar un comodin para todos los subdominios de empresas
+# (ej. https://*.sistema.com) — Django soporta el prefijo '*.' desde la
+# version 4.0. Una lista de origenes literales no escala a las empresas
+# nuevas que se dan de alta bajo el dominio wildcard (DA16).
 CSRF_TRUSTED_ORIGINS = [
     o.strip()
     for o in os.environ.get(

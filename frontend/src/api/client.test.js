@@ -55,4 +55,41 @@ describe('apiFetch', () => {
     expect(error).toBeInstanceOf(ApiError)
     expect(error.status).toBe(0)
   })
+
+  it('en un 401 intenta refrescar la sesión y reintenta la petición original', async () => {
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({ detail: 'expirado' }) })
+      .mockResolvedValueOnce({ ok: true, status: 200 })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ items: [] }) })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const data = await apiFetch('/activos/')
+
+    expect(data).toEqual({ items: [] })
+    expect(mockFetch).toHaveBeenCalledTimes(3)
+    expect(mockFetch.mock.calls[1][0]).toBe('/api/auth/refresh/')
+  })
+
+  it('si el refresh también falla, propaga el ApiError original y dispara auth:expired', async () => {
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({ detail: 'Sesión expirada' }) })
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) })
+    vi.stubGlobal('fetch', mockFetch)
+    const onExpired = vi.fn()
+    window.addEventListener('auth:expired', onExpired)
+
+    await expect(apiFetch('/activos/')).rejects.toThrow('Sesión expirada')
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(onExpired).toHaveBeenCalledTimes(1)
+
+    window.removeEventListener('auth:expired', onExpired)
+  })
+
+  it('un 401 en /auth/login/ no intenta refrescar', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 401, json: async () => ({ detail: 'Usuario o contraseña incorrectos' }),
+    }))
+    await expect(apiFetch('/auth/login/', { method: 'POST' })).rejects.toThrow('Usuario o contraseña incorrectos')
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
 })

@@ -56,4 +56,14 @@ describe('AuthContext', () => {
     function Broken() { useAuth(); return null }
     expect(() => render(<Broken />)).toThrow('useAuth debe usarse dentro de AuthProvider')
   })
+
+  it('el evento auth:expired limpia la sesión aunque no se haya llamado a logout', async () => {
+    meRequest.mockResolvedValue({ username: 'ana', empresa: 'Demo' })
+    render(<AuthProvider><Consumer /></AuthProvider>)
+    expect(await screen.findByText('ana · Demo')).toBeInTheDocument()
+
+    window.dispatchEvent(new Event('auth:expired'))
+
+    await waitFor(() => expect(screen.getByText('entrar')).toBeInTheDocument())
+  })
 })
