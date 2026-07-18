@@ -8,15 +8,29 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch(path, { method = 'GET', body, token, headers } = {}) {
+function getCookie(name) {
+  const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)')
+  return match ? decodeURIComponent(match.pop()) : null
+}
+
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+
+export async function apiFetch(path, { method = 'GET', body, headers } = {}) {
   const finalHeaders = { 'Content-Type': 'application/json', ...(headers || {}) }
-  if (token) finalHeaders.Authorization = `Bearer ${token}`
+
+  // En métodos que cambian estado, reenviamos el token CSRF legible. El JWT
+  // viaja solo en cookies httpOnly (no accesibles desde aquí) vía credentials.
+  if (!SAFE_METHODS.has(method.toUpperCase())) {
+    const csrf = getCookie('csrftoken')
+    if (csrf) finalHeaders['X-CSRFToken'] = csrf
+  }
 
   let response
   try {
     response = await fetch(`${BASE_URL}${path}`, {
       method,
       headers: finalHeaders,
+      credentials: 'include',
       body: body !== undefined ? JSON.stringify(body) : undefined,
     })
   } catch {
@@ -29,7 +43,7 @@ export async function apiFetch(path, { method = 'GET', body, token, headers } = 
       const errorBody = await response.json()
       if (errorBody && errorBody.detail) message = errorBody.detail
     } catch {
-      // response had no JSON body — keep the generic message
+      // sin cuerpo JSON: se mantiene el mensaje genérico
     }
     throw new ApiError(message, response.status)
   }
