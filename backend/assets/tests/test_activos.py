@@ -153,7 +153,7 @@ class RegistrarActivoApiTest(TenantTestCase):
         data = dict(
             num='SOF-0001', nombre='Sistema contable', costo='500000',
             fechaAdq='2024-01-10', fechaUso='2024-01-15', vidaUtil=5,
-            estado='DEPRECIANDO', libros='500000', dep='0', serie='SN-1', factura='F-1',
+            serie='SN-1', factura='F-1',
             categoria=self.cat.id, localizacion=self.loc.id, proveedor=self.prov.id,
             marca=self.marca.id, modelo=self.modelo.id, origen=self.origen.id,
         )
@@ -173,6 +173,20 @@ class RegistrarActivoApiTest(TenantTestCase):
             self.assertEqual(movs[0].tipo_evento, Movimiento.ALTA)
             self.assertEqual(movs[0].usuario_id, self.user.id)
 
+    def test_libros_dep_y_estado_no_se_reciben_del_cliente_se_calculan(self):
+        # El cliente no puede fijar libros/dep/estado; si los envia, se ignoran.
+        resp = self._post('/api/activos/crear/', self._payload(
+            fechaAdq='2020-01-01', fechaUso='2020-01-01',
+            estado='TOTALMENTE_DEPRECIADO', libros='999999', dep='999999',
+        ))
+        self.assertEqual(resp.status_code, 201)
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='SOF-0001')
+            # vida util 5 anios desde 2020-01-01: ya paso de sobra -> totalmente depreciado.
+            self.assertEqual(activo.estado_depreciacion, 'TOTALMENTE_DEPRECIADO')
+            self.assertEqual(activo.depreciacion_acumulada_actual, activo.costo_original)
+            self.assertEqual(activo.valor_libros_actual, Decimal('0.00'))
+
     def test_siguiente_numero_es_correlativo_por_categoria(self):
         r1 = self.client.get(f'/api/activos/siguiente-numero/?categoria={self.cat.id}', HTTP_HOST=self.host)
         self.assertEqual(r1.data['numero'], 'SOF-0001')
@@ -185,6 +199,26 @@ class RegistrarActivoApiTest(TenantTestCase):
         resp = self._post('/api/activos/crear/', self._payload())
         self.assertEqual(resp.status_code, 400)
         self.assertIn('num', resp.data)
+
+    def test_marca_modelo_y_serie_son_opcionales_y_quedan_null(self):
+        payload = self._payload()
+        del payload['marca']
+        del payload['modelo']
+        del payload['serie']
+        resp = self._post('/api/activos/crear/', payload)
+        self.assertEqual(resp.status_code, 201)
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='SOF-0001')
+            self.assertIsNone(activo.marca_id)
+            self.assertIsNone(activo.modelo_id)
+            self.assertIsNone(activo.serie)
+
+    def test_serie_en_blanco_se_guarda_como_null(self):
+        resp = self._post('/api/activos/crear/', self._payload(serie='  '))
+        self.assertEqual(resp.status_code, 201)
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='SOF-0001')
+            self.assertIsNone(activo.serie)
 
     def test_modelo_debe_pertenecer_a_la_marca(self):
         resp = self._post('/api/activos/crear/', self._payload(marca=self.marca_otra.id))
