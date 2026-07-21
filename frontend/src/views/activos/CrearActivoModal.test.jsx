@@ -89,11 +89,36 @@ describe('CrearActivoModal', () => {
     await userEvent.click(screen.getByText('Guardar activo'))
 
     expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({
-      num: 'SOF-0001', nombre: 'Servidor', costo: 500000, libros: 500000, dep: 0,
-      estado: 'DEPRECIANDO', categoria: 1, localizacion: 2, marca: 3, modelo: 4,
+      num: 'SOF-0001', nombre: 'Servidor', costo: 500000,
+      categoria: 1, localizacion: 2, marca: 3, modelo: 4,
       proveedor: 5, origen: 6,
     }))
+    // libros/dep/estado ya no los pone el formulario: los calcula el backend.
+    const enviado = mutateAsync.mock.calls[0][0]
+    expect(enviado).not.toHaveProperty('libros')
+    expect(enviado).not.toHaveProperty('dep')
+    expect(enviado).not.toHaveProperty('estado')
     expect(showToast).toHaveBeenCalledWith('Activo SOF-0001 registrado correctamente', 'success')
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('no pide valor en libros, dep. acumulada ni estado: se calculan solos', () => {
+    render(<CrearActivoModal onClose={vi.fn()} />)
+    expect(screen.queryByText('Valor en libros (₡)')).not.toBeInTheDocument()
+    expect(screen.queryByText('Dep. acumulada (₡)')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Estado')).not.toBeInTheDocument()
+    expect(screen.getByText(/Depreciación \(calculada automáticamente/)).toBeInTheDocument()
+  })
+
+  it('muestra el estimado de depreciación una vez completados costo, vida útil y fecha de uso', async () => {
+    render(<CrearActivoModal onClose={vi.fn()} />)
+    expect(screen.getByText(/Completá costo, vida útil y fecha de inicio de uso/)).toBeInTheDocument()
+
+    await userEvent.type(screen.getByLabelText(/Costo original/), '500000')
+    await userEvent.type(screen.getByLabelText(/Fecha de inicio de uso/), '2024-01-15')
+
+    expect(screen.queryByText(/Completá costo, vida útil y fecha de inicio de uso/)).not.toBeInTheDocument()
+    expect(screen.getByText('Valor en libros')).toBeInTheDocument()
+    expect(screen.getByText('Dep. acumulada')).toBeInTheDocument()
   })
 })

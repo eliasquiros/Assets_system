@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useCrearActivo } from '../../hooks/useActivos'
 import { useToast } from '../../context/ToastContext'
 import { siguienteNumero } from '../../api/catalogos'
 import { validateActivoNuevo } from '../../lib/validators'
+import { calcularDepreciacionPreview } from '../../lib/depreciacion'
+import { money } from '../../lib/money'
 import { FormField } from '../../components/FormField'
 import { CatalogSelect } from '../../components/CatalogSelect'
 import { Button } from '../../components/Button'
@@ -10,7 +12,7 @@ import styles from './ActivoModal.module.css'
 
 const FORM_INICIAL = {
   num: '', nombre: '', costo: '', fechaAdq: '', fechaUso: '', vidaUtil: '5',
-  estado: 'DEPRECIANDO', libros: '', dep: '0', serie: '', factura: '',
+  serie: '', factura: '',
   categoria: '', localizacion: '', proveedor: '', marca: '', modelo: '', origen: '',
 }
 
@@ -18,7 +20,6 @@ export function CrearActivoModal({ onClose }) {
   const [form, setForm] = useState(FORM_INICIAL)
   const [errors, setErrors] = useState({})
   const [sugerido, setSugerido] = useState('')
-  const librosEditado = useRef(false)
   const crear = useCrearActivo()
   const { showToast } = useToast()
 
@@ -42,19 +43,12 @@ export function CrearActivoModal({ onClose }) {
     setForm((prev) => ({ ...prev, marca: id, modelo: '' }))
   }
 
-  // El valor en libros refleja el costo mientras el usuario no lo edite a mano.
-  function cambiarCosto(value) {
-    setForm((prev) => ({ ...prev, costo: value, ...(librosEditado.current ? {} : { libros: value }) }))
-  }
-
-  function cambiarLibros(value) {
-    librosEditado.current = true
-    setForm((prev) => ({ ...prev, libros: value }))
-  }
-
   const avisoNumero = form.num && sugerido && form.num !== sugerido
     ? `Estás usando un número distinto al sugerido (${sugerido}).`
     : ''
+
+  // Vista previa: el valor real que se guarda lo calcula el servidor (RN-001).
+  const preview = calcularDepreciacionPreview(form.costo, form.vidaUtil, form.fechaUso)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -68,8 +62,7 @@ export function CrearActivoModal({ onClose }) {
       const datos = {
         num: form.num.trim(), nombre: form.nombre.trim(),
         costo: Number(form.costo), fechaAdq: form.fechaAdq, fechaUso: form.fechaUso,
-        vidaUtil: Number(form.vidaUtil), estado: form.estado,
-        libros: Number(form.libros), dep: Number(form.dep),
+        vidaUtil: Number(form.vidaUtil),
         serie: form.serie.trim(), factura: form.factura.trim(),
         categoria: Number(form.categoria), localizacion: Number(form.localizacion),
         proveedor: Number(form.proveedor), marca: Number(form.marca),
@@ -110,7 +103,7 @@ export function CrearActivoModal({ onClose }) {
           </FormField>
           <FormField label="Costo original (₡)" error={errors.costo}>
             <input type="number" value={form.costo} placeholder="0"
-              onChange={(e) => cambiarCosto(e.target.value)} />
+              onChange={(e) => set('costo')(e.target.value)} />
           </FormField>
 
           <FormField label="Fecha de adquisición" error={errors.fechaAdq}>
@@ -160,22 +153,25 @@ export function CrearActivoModal({ onClose }) {
             <input type="text" value={form.factura} placeholder="F-0000"
               onChange={(e) => set('factura')(e.target.value)} />
           </FormField>
-
-          <FormField label="Estado" error={errors.estado}>
-            <select value={form.estado} onChange={(e) => set('estado')(e.target.value)}>
-              <option value="DEPRECIANDO">Depreciando</option>
-              <option value="TOTALMENTE_DEPRECIADO">Totalmente depreciado</option>
-            </select>
-          </FormField>
-          <FormField label="Valor en libros (₡)" error={errors.libros}>
-            <input type="number" value={form.libros} placeholder="0"
-              onChange={(e) => cambiarLibros(e.target.value)} />
-          </FormField>
-          <FormField label="Dep. acumulada (₡)" error={errors.dep}>
-            <input type="number" value={form.dep} placeholder="0"
-              onChange={(e) => set('dep')(e.target.value)} />
-          </FormField>
         </div>
+
+        <div className={styles.calculo}>
+          <div className={styles.calculoTitle}>
+            Depreciación (calculada automáticamente, línea recta por días)
+          </div>
+          {preview ? (
+            <div className={styles.calculoValues}>
+              <div><span className={styles.calculoLabel}>Valor en libros</span><span className="mono">{money(preview.libros)}</span></div>
+              <div><span className={styles.calculoLabel}>Dep. acumulada</span><span className="mono">{money(preview.dep)}</span></div>
+              <div><span className={styles.calculoLabel}>Estado</span><span>{preview.estado}</span></div>
+            </div>
+          ) : (
+            <div className={styles.calculoHint}>
+              Completá costo, vida útil y fecha de inicio de uso para ver el estimado.
+            </div>
+          )}
+        </div>
+
         <div className={styles.actions}>
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={crear.isPending}>Guardar activo</Button>
