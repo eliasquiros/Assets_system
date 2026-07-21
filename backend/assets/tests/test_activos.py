@@ -13,7 +13,7 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.models import Usuario
-from assets.models import Activo, Categoria, Localizacion
+from assets.models import Activo, Categoria, Localizacion, Movimiento
 from companies.models import Domain, Empresa
 
 
@@ -96,6 +96,32 @@ class ActivosApiTest(TenantTestCase):
     def test_detalle_inexistente_da_404(self):
         resp = self.client.get('/api/activos/AF-9999/', HTTP_HOST=self.host)
         self.assertEqual(resp.status_code, 404)
+
+    def test_movimientos_devuelve_el_contrato_del_drawer(self):
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='AF-0001')
+            Movimiento.objects.create(
+                activo=activo, tipo_evento=Movimiento.ALTA, valor_nuevo={},
+                fecha_efectiva=date(2022, 3, 15), usuario=self.user,
+            )
+        resp = self.client.get('/api/activos/AF-0001/movimientos/', HTTP_HOST=self.host)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsInstance(resp.data, list)
+        self.assertEqual(len(resp.data), 1)
+        h = resp.data[0]
+        self.assertEqual(set(h.keys()), {'tipo', 'fecha', 'desc'})
+        self.assertEqual(h['tipo'], 'Alta / Registro inicial')
+        self.assertEqual(h['fecha'], '2022-03-15')
+        self.assertEqual(h['desc'], 'Registro inicial del activo')
+
+    def test_movimientos_de_activo_inexistente_da_404(self):
+        resp = self.client.get('/api/activos/AF-9999/movimientos/', HTTP_HOST=self.host)
+        self.assertEqual(resp.status_code, 404)
+
+    def test_movimientos_requiere_sesion(self):
+        anon = APIClient()
+        resp = anon.get('/api/activos/AF-0001/movimientos/', HTTP_HOST=self.host)
+        self.assertEqual(resp.status_code, 401)
 
 
 class AislamientoActivosTest(TenantTestCase):

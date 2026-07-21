@@ -6,10 +6,11 @@ da el schema fijado por TenantMainMiddleware antes de llegar aca (RS-002): la
 consulta corre siempre contra el schema del subdominio, nunca contra otro.
 """
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 
-from .models import Activo
-from .serializers import ActivoDetailSerializer, ActivoListSerializer
+from .models import Activo, Movimiento
+from .serializers import ActivoDetailSerializer, ActivoListSerializer, MovimientoSerializer
 
 
 class ActivoListView(ListAPIView):
@@ -34,6 +35,18 @@ class ActivoListView(ListAPIView):
 class ActivoDetailView(RetrieveAPIView):
     """GET /api/activos/<num>/ — un activo por su numero (el "ver mas" del drawer)."""
     serializer_class = ActivoDetailSerializer
-    queryset = Activo.objects.select_related('localizacion', 'categoria')
+    queryset = Activo.objects.select_related('localizacion', 'categoria', 'proveedor')
     lookup_field = 'numero_activo'
     lookup_url_kwarg = 'num'
+
+
+class MovimientoListView(ListAPIView):
+    """GET /api/activos/<num>/movimientos/ — historial del activo (RF-007).
+
+    Es lo que alimenta la seccion "Historial de movimientos" del drawer. Un
+    numero de activo inexistente da 404 (no una lista vacia enganosa)."""
+    serializer_class = MovimientoSerializer
+
+    def get_queryset(self):
+        activo = get_object_or_404(Activo, numero_activo=self.kwargs['num'])
+        return activo.movimientos.all()

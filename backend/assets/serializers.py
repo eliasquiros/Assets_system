@@ -7,7 +7,7 @@ cliente), `estado` como etiqueta amigable, y fechas en ISO.
 """
 from rest_framework import serializers
 
-from .models import Activo
+from .models import Activo, Movimiento
 
 
 class ActivoListSerializer(serializers.ModelSerializer):
@@ -28,7 +28,43 @@ class ActivoListSerializer(serializers.ModelSerializer):
 
 
 class ActivoDetailSerializer(ActivoListSerializer):
+    """Detalle completo del activo para el "Ver mas": ademas del contrato del
+    listado, expone todos los campos restantes del modelo (vida util, serie,
+    factura, fechas) para que el drawer muestre la ficha entera."""
     fechaUso = serializers.DateField(source='fecha_inicio')
+    vidaUtil = serializers.IntegerField(source='vida_util_anios')
+    serie = serializers.CharField(allow_null=True)
+    factura = serializers.CharField(allow_null=True)
+    proveedor = serializers.CharField(source='proveedor.nombre', allow_null=True, default=None)
+    # fecha_creacion es DateTimeField; se emite como fecha (YYYY-MM-DD) para que
+    # el fmtDate del frontend la formatee igual que las demas fechas.
+    fechaRegistro = serializers.DateTimeField(source='fecha_creacion', format='%Y-%m-%d')
 
     class Meta(ActivoListSerializer.Meta):
-        fields = ActivoListSerializer.Meta.fields + ['fechaUso']
+        fields = ActivoListSerializer.Meta.fields + [
+            'fechaUso', 'vidaUtil', 'serie', 'factura', 'proveedor', 'fechaRegistro',
+        ]
+
+
+class MovimientoSerializer(serializers.ModelSerializer):
+    """Emite el contrato exacto que consume el historial del ActivoDetailDrawer:
+    `tipo` (etiqueta amigable), `fecha` (ISO) y `desc` (texto legible)."""
+    tipo = serializers.CharField(source='get_tipo_evento_display')
+    fecha = serializers.DateField(source='fecha_efectiva')
+    desc = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Movimiento
+        fields = ['tipo', 'fecha', 'desc']
+
+    def get_desc(self, obj):
+        return self._DESCRIPCIONES.get(obj.tipo_evento, obj.get_tipo_evento_display())
+
+    _DESCRIPCIONES = {
+        Movimiento.ALTA: 'Registro inicial del activo',
+        Movimiento.CAMBIO_COSTO: 'Ajuste del costo original del activo',
+        Movimiento.CAMBIO_VIDA_UTIL: 'Ajuste de la vida útil estimada',
+        Movimiento.CAMBIO_AREA_TIPO: 'Reubicación de área o cambio de categoría',
+        Movimiento.BAJA: 'Retiro / baja del activo',
+        Movimiento.REVERSION_BAJA: 'Reversión de la baja registrada',
+    }
