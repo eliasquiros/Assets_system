@@ -36,7 +36,9 @@ beforeEach(() => {
 
 async function llenarActivo() {
   await userEvent.selectOptions(screen.getByLabelText('Categoría'), '1')
-  await waitFor(() => expect(screen.getByPlaceholderText('Se genera al elegir categoría')).toHaveValue('SOF-0001'))
+  const numInput = screen.getByPlaceholderText('Se genera al elegir categoría')
+  await waitFor(() => expect(numInput).toHaveValue('SOF-'))
+  await userEvent.type(numInput, '0001')
   await userEvent.type(screen.getByPlaceholderText('Ej. Computadora portátil…'), 'Servidor')
   await userEvent.type(screen.getByLabelText(/Costo original/), '500000')
   await userEvent.type(screen.getByLabelText(/Fecha de adquisición/), '2024-01-10')
@@ -60,17 +62,16 @@ describe('CrearActivoModal', () => {
     expect(screen.getAllByText('Campo obligatorio').length).toBeGreaterThan(0)
   })
 
-  it('precarga el número sugerido al elegir categoría y avisa si se cambia', async () => {
+  it('al elegir categoría solo autocompleta el prefijo, no el número completo', async () => {
     render(<CrearActivoModal onClose={vi.fn()} />)
     await userEvent.selectOptions(screen.getByLabelText('Categoría'), '1')
 
     const numInput = screen.getByPlaceholderText('Se genera al elegir categoría')
-    await waitFor(() => expect(numInput).toHaveValue('SOF-0001'))
-    expect(screen.queryByText(/número distinto al sugerido/)).not.toBeInTheDocument()
+    await waitFor(() => expect(numInput).toHaveValue('SOF-'))
+    expect(screen.getByText('Número sugerido: SOF-0001')).toBeInTheDocument()
 
-    await userEvent.clear(numInput)
-    await userEvent.type(numInput, 'SOF-9999')
-    expect(screen.getByText(/número distinto al sugerido/)).toBeInTheDocument()
+    await userEvent.type(numInput, '0002')
+    expect(numInput).toHaveValue('SOF-0002')
   })
 
   it('deshabilita Modelo hasta elegir Marca y lo pide filtrado por esa marca', async () => {
@@ -105,7 +106,9 @@ describe('CrearActivoModal', () => {
   it('permite guardar sin marca, modelo ni serie: se envían como null', async () => {
     render(<CrearActivoModal onClose={vi.fn()} />)
     await userEvent.selectOptions(screen.getByLabelText('Categoría'), '1')
-    await waitFor(() => expect(screen.getByPlaceholderText('Se genera al elegir categoría')).toHaveValue('SOF-0001'))
+    const numInput = screen.getByPlaceholderText('Se genera al elegir categoría')
+    await waitFor(() => expect(numInput).toHaveValue('SOF-'))
+    await userEvent.type(numInput, '0001')
     await userEvent.type(screen.getByPlaceholderText('Ej. Computadora portátil…'), 'Servidor')
     await userEvent.type(screen.getByLabelText(/Costo original/), '500000')
     await userEvent.type(screen.getByLabelText(/Fecha de adquisición/), '2024-01-10')

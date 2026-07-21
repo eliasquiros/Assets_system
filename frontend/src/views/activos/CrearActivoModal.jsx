@@ -25,14 +25,16 @@ export function CrearActivoModal({ onClose }) {
 
   const set = (key) => (value) => setForm((prev) => ({ ...prev, [key]: value }))
 
-  // Al cambiar la categoria, precargamos el siguiente numero correlativo.
+  // Al cambiar la categoria, precargamos solo el prefijo (ej. "SOF-"): el
+  // correlativo lo termina de escribir la persona usuaria a mano.
   async function cambiarCategoria(id) {
     setForm((prev) => ({ ...prev, categoria: id }))
     if (!id) { setSugerido(''); return }
     try {
       const { numero } = await siguienteNumero(id)
       setSugerido(numero)
-      setForm((prev) => ({ ...prev, num: numero }))
+      const prefijo = numero.slice(0, numero.lastIndexOf('-') + 1)
+      setForm((prev) => ({ ...prev, num: prefijo }))
     } catch {
       // si falla la sugerencia, el usuario puede escribir el numero a mano
     }
@@ -43,9 +45,7 @@ export function CrearActivoModal({ onClose }) {
     setForm((prev) => ({ ...prev, marca: id, modelo: '' }))
   }
 
-  const avisoNumero = form.num && sugerido && form.num !== sugerido
-    ? `Estás usando un número distinto al sugerido (${sugerido}).`
-    : ''
+  const avisoNumero = sugerido ? `Número sugerido: ${sugerido}` : ''
 
   // Vista previa: el valor real que se guarda lo calcula el servidor (RN-001).
   const preview = calcularDepreciacionPreview(parseMonto(form.costo), form.vidaUtil, form.fechaUso)
