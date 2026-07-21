@@ -51,10 +51,11 @@
   background: var(--color-navy); border-radius: 12px; padding: 18px 20px;
 }
 .values .label { color: rgba(255, 255, 255, .68); }
-/* min-width: 0 + overflow-wrap: los montos son texto mono sin espacios, asi
-   que sin esto un numero grande desborda la columna en vez de encogerse. */
+/* min-width: 0: los montos son texto mono, asi que sin esto un numero grande
+   desborda la columna en vez de encogerse (el salto de linea entre grupos de
+   miles lo habilita moneyWrap en ActivoDetailDrawer.jsx). */
 .valueItem { min-width: 0; }
-.valueBig { font-size: 16px; font-weight: 600; color: #fff; overflow-wrap: anywhere; }
+.valueBig { font-size: 16px; font-weight: 600; color: #fff; }
 
 /* Tarjetas blancas */
 .card, .history { background: #fff; border: 1px solid var(--color-border); border-radius: 12px; }

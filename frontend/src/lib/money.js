@@ -2,7 +2,7 @@
 // Node/ICU build, not a period — grouping is done manually to match the '.' the spec requires.
 export function money(n) {
   const value = Math.round(Number(n) || 0)
-  return '₡ ' + String(value).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return '₡ ' + String(value).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 }
 
 // Formatea un monto mientras el usuario escribe: '.' agrupa miles, ',' separa

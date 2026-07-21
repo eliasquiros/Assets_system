@@ -7,6 +7,13 @@ import { money } from '../../lib/money'
 import { fmtDate } from '../../lib/date'
 import styles from './ActivoDetailDrawer.module.css'
 
+// Zero-width space despues de cada punto de miles: deja que el navegador
+// corte montos muy largos entre grupos de digitos en vez de aislar el "₡"
+// o desbordar la tarjeta (el espacio entre "₡" y el numero no se corta).
+function moneyWrap(n) {
+  return money(n).replace(/\./g, '.​')
+}
+
 function Dato({ label, children }) {
   return (
     <div className={styles.dato}>
@@ -50,15 +57,15 @@ export function ActivoDetailDrawer({ onClose }) {
               <section className={styles.values}>
                 <div className={styles.valueItem}>
                   <div className={styles.label}>Costo original</div>
-                  <div className={`mono ${styles.valueBig}`}>{money(activo.costo)}</div>
+                  <div className={`mono ${styles.valueBig}`}>{moneyWrap(activo.costo)}</div>
                 </div>
                 <div className={styles.valueItem}>
                   <div className={styles.label}>Valor en libros</div>
-                  <div className={`mono ${styles.valueBig}`}>{money(activo.libros)}</div>
+                  <div className={`mono ${styles.valueBig}`}>{moneyWrap(activo.libros)}</div>
                 </div>
                 <div className={styles.valueItem}>
                   <div className={styles.label}>Dep. acumulada</div>
-                  <div className={`mono ${styles.valueBig}`}>{money(activo.dep)}</div>
+                  <div className={`mono ${styles.valueBig}`}>{moneyWrap(activo.dep)}</div>
                 </div>
               </section>
 
