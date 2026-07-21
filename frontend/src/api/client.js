@@ -71,7 +71,15 @@ export async function apiFetch(path, { method = 'GET', body, headers, _retry = t
     let message = `Error ${response.status}`
     try {
       const errorBody = await response.json()
-      if (errorBody && errorBody.detail) message = errorBody.detail
+      if (errorBody && errorBody.detail) {
+        message = errorBody.detail
+      } else if (errorBody && typeof errorBody === 'object') {
+        // Errores de validacion por campo ({campo: ["mensaje"]}): tomamos el
+        // primer mensaje legible en vez de un "Error 400" generico.
+        const primero = Object.values(errorBody)[0]
+        if (Array.isArray(primero) && primero.length) message = String(primero[0])
+        else if (typeof primero === 'string') message = primero
+      }
     } catch {
       // sin cuerpo JSON: se mantiene el mensaje genérico
     }
