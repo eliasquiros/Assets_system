@@ -33,9 +33,11 @@ export function ActivoTable({ isLoading, isError, activos }) {
               <td className="mono">{money(a.dep)}</td>
               <td><Badge label={a.estado} /></td>
               <td className="mono">{fmtDate(a.fechaAdq)}</td>
-              <td className={styles.actions}>
-                <Link to={`/activos/${a.num}`}>Ver más</Link>
-                <Link to={`/activos/${a.num}/editar`}>Editar</Link>
+              <td>
+                <div className={styles.actions}>
+                  <Link className={`${styles.btn} ${styles.btnPrimary}`} to={`/activos/${a.num}`}>Ver más</Link>
+                  <Link className={styles.btn} to={`/activos/${a.num}/editar`}>Editar</Link>
+                </div>
               </td>
             </tr>
           ))}
