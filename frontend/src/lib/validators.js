@@ -1,3 +1,5 @@
+import { parseMonto } from './money'
+
 export const ACTIVO_REQUIRED_FIELDS = [
   'num', 'nombre', 'costo', 'fechaAdq', 'fechaUso', 'vidaUtil',
   'origen', 'proveedor', 'area', 'tipo', 'serie', 'modelo', 'marca', 'factura',
@@ -41,7 +43,7 @@ export function validateActivoNuevo(values) {
       errors[key] = 'Campo obligatorio'
     }
   })
-  if (values.costo && Number(values.costo) <= 0) errors.costo = 'Debe ser mayor a cero'
+  if (values.costo && parseMonto(values.costo) <= 0) errors.costo = 'Debe ser mayor a cero'
   if (values.vidaUtil && Number(values.vidaUtil) <= 0) errors.vidaUtil = 'Debe ser mayor a cero'
   if (values.fechaAdq && values.fechaUso && values.fechaUso < values.fechaAdq) {
     errors.fechaUso = 'No puede ser anterior a la fecha de adquisición'

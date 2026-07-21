@@ -4,7 +4,7 @@ import { useToast } from '../../context/ToastContext'
 import { siguienteNumero } from '../../api/catalogos'
 import { validateActivoNuevo } from '../../lib/validators'
 import { calcularDepreciacionPreview } from '../../lib/depreciacion'
-import { money } from '../../lib/money'
+import { money, formatMontoInput, parseMonto } from '../../lib/money'
 import { FormField } from '../../components/FormField'
 import { CatalogSelect } from '../../components/CatalogSelect'
 import { Button } from '../../components/Button'
@@ -48,7 +48,7 @@ export function CrearActivoModal({ onClose }) {
     : ''
 
   // Vista previa: el valor real que se guarda lo calcula el servidor (RN-001).
-  const preview = calcularDepreciacionPreview(form.costo, form.vidaUtil, form.fechaUso)
+  const preview = calcularDepreciacionPreview(parseMonto(form.costo), form.vidaUtil, form.fechaUso)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -61,7 +61,7 @@ export function CrearActivoModal({ onClose }) {
     try {
       const datos = {
         num: form.num.trim(), nombre: form.nombre.trim(),
-        costo: Number(form.costo), fechaAdq: form.fechaAdq, fechaUso: form.fechaUso,
+        costo: parseMonto(form.costo), fechaAdq: form.fechaAdq, fechaUso: form.fechaUso,
         vidaUtil: Number(form.vidaUtil),
         serie: form.serie.trim() || null, factura: form.factura.trim(),
         categoria: Number(form.categoria), localizacion: Number(form.localizacion),
@@ -102,8 +102,8 @@ export function CrearActivoModal({ onClose }) {
               onChange={(e) => set('nombre')(e.target.value)} />
           </FormField>
           <FormField label="Costo original (₡)" error={errors.costo}>
-            <input type="number" value={form.costo} placeholder="0"
-              onChange={(e) => set('costo')(e.target.value)} />
+            <input type="text" inputMode="decimal" value={form.costo} placeholder="0"
+              onChange={(e) => set('costo')(formatMontoInput(e.target.value))} />
           </FormField>
 
           <FormField label="Fecha de adquisición" error={errors.fechaAdq}>
