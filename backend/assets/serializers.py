@@ -5,9 +5,12 @@ construido (ver frontend/src/views/activos/*): `num`, `nombre`, `area`, `tipo`,
 `costo`/`libros`/`dep` como numeros (no strings, porque la vista los suma en
 cliente), `estado` como etiqueta amigable, y fechas en ISO.
 """
+from django.db import transaction
 from rest_framework import serializers
 
-from .models import Activo, Movimiento
+from .models import (
+    Activo, Categoria, Localizacion, Marca, Modelo, Movimiento, Origen, Proveedor,
+)
 
 
 class ActivoListSerializer(serializers.ModelSerializer):
@@ -68,3 +71,76 @@ class MovimientoSerializer(serializers.ModelSerializer):
         Movimiento.BAJA: 'Retiro / baja del activo',
         Movimiento.REVERSION_BAJA: 'Reversión de la baja registrada',
     }
+
+
+class ActivoCreateSerializer(serializers.ModelSerializer):
+    """Registro de un activo (RF-001). Recibe IDs de catalogo + escalares con las
+    mismas claves camelCase del formulario, valida las reglas de negocio y crea
+    el activo junto con su movimiento ALTA (RF-007) en una sola transaccion."""
+    num = serializers.CharField(source='numero_activo', max_length=50)
+    costo = serializers.DecimalField(source='costo_original', max_digits=14, decimal_places=2)
+    fechaAdq = serializers.DateField(source='fecha_adquisicion')
+    fechaUso = serializers.DateField(source='fecha_inicio')
+    vidaUtil = serializers.IntegerField(source='vida_util_anios')
+    estado = serializers.ChoiceField(source='estado_depreciacion', choices=Activo.ESTADO_CHOICES)
+    libros = serializers.DecimalField(source='valor_libros_actual', max_digits=14, decimal_places=2)
+    dep = serializers.DecimalField(source='depreciacion_acumulada_actual', max_digits=14, decimal_places=2)
+    serie = serializers.CharField(max_length=100)
+    factura = serializers.CharField(max_length=100)
+    categoria = serializers.PrimaryKeyRelatedField(queryset=Categoria.objects.all())
+    localizacion = serializers.PrimaryKeyRelatedField(queryset=Localizacion.objects.all())
+    proveedor = serializers.PrimaryKeyRelatedField(queryset=Proveedor.objects.all())
+    marca = serializers.PrimaryKeyRelatedField(queryset=Marca.objects.all())
+    modelo = serializers.PrimaryKeyRelatedField(queryset=Modelo.objects.all())
+    origen = serializers.PrimaryKeyRelatedField(queryset=Origen.objects.all())
+
+    class Meta:
+        model = Activo
+        fields = [
+            'num', 'nombre', 'costo', 'fechaAdq', 'fechaUso', 'vidaUtil', 'estado',
+            'libros', 'dep', 'serie', 'factura', 'categoria', 'localizacion',
+            'proveedor', 'marca', 'modelo', 'origen',
+        ]
+
+    def validate_num(self, value):
+        if Activo.objects.filter(numero_activo=value).exists():
+            raise serializers.ValidationError('Ya existe un activo con ese número.')
+        return value
+
+    def validate(self, attrs):
+        costo = attrs.get('costo_original')
+        dep = attrs.get('depreciacion_acumulada_actual')
+        if costo is not None and costo <= 0:
+            raise serializers.ValidationError({'costo': 'Debe ser mayor a cero.'})
+        if attrs.get('vida_util_anios', 1) <= 0:
+            raise serializers.ValidationError({'vidaUtil': 'Debe ser mayor a cero.'})
+        if attrs['fecha_inicio'] < attrs['fecha_adquisicion']:
+            raise serializers.ValidationError(
+                {'fechaUso': 'La fecha de inicio no puede ser anterior a la de adquisición.'})
+        if dep is not None and costo is not None and dep > costo:
+            raise serializers.ValidationError(
+                {'dep': 'La depreciación acumulada no puede superar el costo.'})
+        marca, modelo = attrs.get('marca'), attrs.get('modelo')
+        if marca and modelo and modelo.marca_id != marca.id:
+            raise serializers.ValidationError(
+                {'modelo': 'El modelo no pertenece a la marca seleccionada.'})
+        return attrs
+
+    def create(self, validated_data):
+        with transaction.atomic():
+            activo = Activo.objects.create(**validated_data)
+            Movimiento.objects.create(
+                activo=activo,
+                tipo_evento=Movimiento.ALTA,
+                valor_anterior=None,
+                valor_nuevo={
+                    'costo_original': str(activo.costo_original),
+                    'vida_util_anios': activo.vida_util_anios,
+                    'fecha_inicio': activo.fecha_inicio.isoformat(),
+                    'localizacion_id': activo.localizacion_id,
+                    'categoria_id': activo.categoria_id,
+                },
+                fecha_efectiva=activo.fecha_adquisicion,
+                usuario=self.context['request'].user,
+            )
+        return activo

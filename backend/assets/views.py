@@ -7,10 +7,15 @@ consulta corre siempre contra el schema del subdominio, nunca contra otro.
 """
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .models import Activo, Movimiento
-from .serializers import ActivoDetailSerializer, ActivoListSerializer, MovimientoSerializer
+from .models import Activo, Categoria, Movimiento
+from .serializers import (
+    ActivoCreateSerializer, ActivoDetailSerializer, ActivoListSerializer,
+    MovimientoSerializer,
+)
 
 
 class ActivoListView(ListAPIView):
@@ -50,3 +55,30 @@ class MovimientoListView(ListAPIView):
     def get_queryset(self):
         activo = get_object_or_404(Activo, numero_activo=self.kwargs['num'])
         return activo.movimientos.all()
+
+
+class ActivoCreateView(CreateAPIView):
+    """POST /api/activos/crear/ — registra un activo y su movimiento ALTA (RF-001)."""
+    serializer_class = ActivoCreateSerializer
+
+
+class SiguienteNumeroView(APIView):
+    """GET /api/activos/siguiente-numero/?categoria=<id> — numero sugerido.
+
+    Devuelve el siguiente correlativo de la categoria (PREFIJO-####) mirando los
+    numeros existentes con ese prefijo, para precargar el campo en el formulario.
+    """
+    def get(self, request):
+        categoria = get_object_or_404(Categoria, pk=request.query_params.get('categoria'))
+        prefijo = (categoria.prefijo or '').strip().upper()
+        if not prefijo:
+            return Response({'numero': ''})
+        maximo = 0
+        existentes = Activo.objects.filter(
+            numero_activo__istartswith=f'{prefijo}-'
+        ).values_list('numero_activo', flat=True)
+        for numero in existentes:
+            sufijo = numero.split('-', 1)[1] if '-' in numero else ''
+            if sufijo.isdigit():
+                maximo = max(maximo, int(sufijo))
+        return Response({'numero': f'{prefijo}-{maximo + 1:04d}'})
