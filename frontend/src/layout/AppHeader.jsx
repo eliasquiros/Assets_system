@@ -21,7 +21,6 @@ export function AppHeader() {
         <span aria-hidden="true">▾</span>
       </button>
       <div className={styles.session}>
-        <span className={styles.secure}>Conexión cifrada · HTTPS</span>
         <div className={styles.user}>
           <div className={styles.userInfo}>
             <div className={styles.userName}>{username}</div>
