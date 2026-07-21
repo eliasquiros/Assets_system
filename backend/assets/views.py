@@ -40,7 +40,9 @@ class ActivoListView(ListAPIView):
 class ActivoDetailView(RetrieveAPIView):
     """GET /api/activos/<num>/ — un activo por su numero (el "ver mas" del drawer)."""
     serializer_class = ActivoDetailSerializer
-    queryset = Activo.objects.select_related('localizacion', 'categoria', 'proveedor')
+    queryset = Activo.objects.select_related(
+        'localizacion', 'categoria', 'proveedor', 'marca', 'modelo', 'origen',
+    )
     lookup_field = 'numero_activo'
     lookup_url_kwarg = 'num'
 

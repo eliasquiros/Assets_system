@@ -39,13 +39,17 @@ class ActivoDetailSerializer(ActivoListSerializer):
     serie = serializers.CharField(allow_null=True)
     factura = serializers.CharField(allow_null=True)
     proveedor = serializers.CharField(source='proveedor.nombre', allow_null=True, default=None)
+    marca = serializers.CharField(source='marca.nombre', allow_null=True, default=None)
+    modelo = serializers.CharField(source='modelo.nombre', allow_null=True, default=None)
+    origen = serializers.CharField(source='origen.nombre', allow_null=True, default=None)
     # fecha_creacion es DateTimeField; se emite como fecha (YYYY-MM-DD) para que
     # el fmtDate del frontend la formatee igual que las demas fechas.
     fechaRegistro = serializers.DateTimeField(source='fecha_creacion', format='%Y-%m-%d')
 
     class Meta(ActivoListSerializer.Meta):
         fields = ActivoListSerializer.Meta.fields + [
-            'fechaUso', 'vidaUtil', 'serie', 'factura', 'proveedor', 'fechaRegistro',
+            'fechaUso', 'vidaUtil', 'serie', 'factura', 'proveedor',
+            'marca', 'modelo', 'origen', 'fechaRegistro',
         ]
 
 

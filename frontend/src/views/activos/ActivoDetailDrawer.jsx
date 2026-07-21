@@ -68,6 +68,9 @@ export function ActivoDetailDrawer({ onClose }) {
                   <Dato label="Área">{activo.area}</Dato>
                   <Dato label="Categoría">{activo.tipo}</Dato>
                   <Dato label="Proveedor">{activo.proveedor || '—'}</Dato>
+                  <Dato label="Marca">{activo.marca || '—'}</Dato>
+                  <Dato label="Modelo">{activo.modelo || '—'}</Dato>
+                  <Dato label="Origen">{activo.origen || '—'}</Dato>
                   <Dato label="Vida útil">{activo.vidaUtil} años</Dato>
                   <Dato label="N.º de serie"><span className="mono">{activo.serie || '—'}</span></Dato>
                   <Dato label="Factura"><span className="mono">{activo.factura || '—'}</span></Dato>
