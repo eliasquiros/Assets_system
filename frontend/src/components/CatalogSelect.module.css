@@ -10,3 +10,4 @@
 .panelActions { display: flex; justify-content: flex-end; gap: 8px; }
 .panelActions button { height: 32px; padding: 0 12px; font-size: 12px; }
 .err { font-size: 11px; color: #C0504D; font-weight: 500; }
+.hint { font-size: 11px; color: var(--color-muted-2); }

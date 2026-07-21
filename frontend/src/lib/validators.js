@@ -27,10 +27,10 @@ export function validateActivo(values) {
 // ACTIVO_REQUIRED_FIELDS (texto libre) que sigue usando el modal de edicion.
 // Valor en libros, dep. acumulada y estado NO se piden: el backend los calcula
 // (RN-001, linea recta por dias) a partir de costo, vida util y fecha de uso.
+// Marca, modelo y serie son opcionales: se guardan como null si se omiten.
 export const ACTIVO_NUEVO_REQUIRED = [
   'num', 'nombre', 'costo', 'fechaAdq', 'fechaUso', 'vidaUtil',
-  'serie', 'factura', 'categoria', 'localizacion',
-  'proveedor', 'marca', 'modelo', 'origen',
+  'factura', 'categoria', 'localizacion', 'proveedor', 'origen',
 ]
 
 export function validateActivoNuevo(values) {

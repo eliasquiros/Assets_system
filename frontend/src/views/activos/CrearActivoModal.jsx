@@ -63,10 +63,10 @@ export function CrearActivoModal({ onClose }) {
         num: form.num.trim(), nombre: form.nombre.trim(),
         costo: Number(form.costo), fechaAdq: form.fechaAdq, fechaUso: form.fechaUso,
         vidaUtil: Number(form.vidaUtil),
-        serie: form.serie.trim(), factura: form.factura.trim(),
+        serie: form.serie.trim() || null, factura: form.factura.trim(),
         categoria: Number(form.categoria), localizacion: Number(form.localizacion),
-        proveedor: Number(form.proveedor), marca: Number(form.marca),
-        modelo: Number(form.modelo), origen: Number(form.origen),
+        proveedor: Number(form.proveedor), marca: form.marca ? Number(form.marca) : null,
+        modelo: form.modelo ? Number(form.modelo) : null, origen: Number(form.origen),
       }
       await crear.mutateAsync(datos)
       showToast(`Activo ${datos.num} registrado correctamente`, 'success')
@@ -123,15 +123,17 @@ export function CrearActivoModal({ onClose }) {
             camposNuevo={[{ key: 'nombre', label: 'Nombre' }]}
           />
           <CatalogSelect
-            tipo="marcas" label="Marca" value={form.marca}
+            tipo="marcas" label="Marca" value={form.marca} required={false}
             onChange={cambiarMarca} error={errors.marca}
+            hint="Opcional. Si se deja vacío, se guarda sin especificar."
             camposNuevo={[{ key: 'nombre', label: 'Nombre' }]}
           />
           <CatalogSelect
-            tipo="modelos" label="Modelo" value={form.modelo}
+            tipo="modelos" label="Modelo" value={form.modelo} required={false}
             onChange={set('modelo')} error={errors.modelo}
             params={{ marca: form.marca }} disabled={!form.marca}
             placeholder={form.marca ? 'Seleccionar modelo…' : 'Elegí una marca primero'}
+            hint="Opcional. Si se deja vacío, se guarda sin especificar."
             camposNuevo={[{ key: 'nombre', label: 'Nombre' }]}
             payloadExtra={{ marca: form.marca }}
           />
@@ -145,7 +147,8 @@ export function CrearActivoModal({ onClose }) {
             onChange={set('origen')} error={errors.origen}
           />
 
-          <FormField label="Serie" error={errors.serie}>
+          <FormField label="Serie" error={errors.serie} required={false}
+            hint="Opcional. Si se deja vacío, se guarda sin especificar.">
             <input type="text" value={form.serie} placeholder="N.º de serie"
               onChange={(e) => set('serie')(e.target.value)} />
           </FormField>

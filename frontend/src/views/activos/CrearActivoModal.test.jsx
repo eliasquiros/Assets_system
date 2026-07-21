@@ -102,6 +102,31 @@ describe('CrearActivoModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
+  it('permite guardar sin marca, modelo ni serie: se envían como null', async () => {
+    render(<CrearActivoModal onClose={vi.fn()} />)
+    await userEvent.selectOptions(screen.getByLabelText('Categoría'), '1')
+    await waitFor(() => expect(screen.getByPlaceholderText('Se genera al elegir categoría')).toHaveValue('SOF-0001'))
+    await userEvent.type(screen.getByPlaceholderText('Ej. Computadora portátil…'), 'Servidor')
+    await userEvent.type(screen.getByLabelText(/Costo original/), '500000')
+    await userEvent.type(screen.getByLabelText(/Fecha de adquisición/), '2024-01-10')
+    await userEvent.type(screen.getByLabelText(/Fecha de inicio de uso/), '2024-01-15')
+    await userEvent.type(screen.getByPlaceholderText('F-0000'), 'F-1')
+    await userEvent.selectOptions(screen.getByLabelText('Área'), '2')
+    await userEvent.selectOptions(screen.getByLabelText('Proveedor'), '5')
+    await userEvent.selectOptions(screen.getByLabelText('Origen'), '6')
+
+    await userEvent.click(screen.getByText('Guardar activo'))
+
+    expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({
+      marca: null, modelo: null, serie: null,
+    }))
+  })
+
+  it('marca, modelo y serie muestran una nota de campo opcional', () => {
+    render(<CrearActivoModal onClose={vi.fn()} />)
+    expect(screen.getAllByText('Opcional. Si se deja vacío, se guarda sin especificar.').length).toBe(3)
+  })
+
   it('no pide valor en libros, dep. acumulada ni estado: se calculan solos', () => {
     render(<CrearActivoModal onClose={vi.fn()} />)
     expect(screen.queryByText('Valor en libros (₡)')).not.toBeInTheDocument()

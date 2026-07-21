@@ -13,7 +13,7 @@ import styles from './CatalogSelect.module.css'
  * - `payloadExtra`: datos extra al crear (ej. { marca } para un modelo).
  */
 export function CatalogSelect({
-  tipo, label, value, onChange, error, required = true,
+  tipo, label, value, onChange, error, required = true, hint,
   params = {}, disabled = false, camposNuevo = null, payloadExtra = {}, placeholder,
 }) {
   const { data, isLoading } = useCatalogo(tipo, params, { enabled: !disabled })
@@ -83,6 +83,7 @@ export function CatalogSelect({
       ))}
 
       {error && <span className={styles.err}>{error}</span>}
+      {!error && hint && <span className={styles.hint}>{hint}</span>}
     </div>
   )
 }
