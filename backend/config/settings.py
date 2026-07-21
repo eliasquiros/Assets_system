@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -44,22 +45,35 @@ ALLOWED_HOSTS = [
 
 # Application definition
 
-INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
+SHARED_APPS = [
+    'django_tenants',            # obligatorio primero
+    'companies',                 # registro de empresas (schema publico)
     'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
 ]
 
+TENANT_APPS = [
+    'django.contrib.contenttypes',
+    'django.contrib.auth',
+    'rest_framework_simplejwt.token_blacklist',  # per-tenant: FK a accounts.Usuario
+    'accounts',                  # usuarios + auth (schema de cada empresa)
+    'assets',                    # activos y catalogos (schema de cada empresa)
+]
+
+INSTALLED_APPS = list(SHARED_APPS) + [a for a in TENANT_APPS if a not in SHARED_APPS]
+
+TENANT_MODEL = 'companies.Empresa'
+TENANT_DOMAIN_MODEL = 'companies.Domain'
+AUTH_USER_MODEL = 'accounts.Usuario'
+
+DATABASE_ROUTERS = ('django_tenants.routers.TenantSyncRouter',)
+
 MIDDLEWARE = [
+    'django_tenants.middleware.main.TenantMainMiddleware',   # fija el schema por Host, primero
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -73,8 +87,6 @@ TEMPLATES = [
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
             ],
         },
     },
@@ -86,16 +98,13 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 #
-# Backend estandar de PostgreSQL para pruebas basicas locales. DA01 exige
-# multitenencia por schema mediante django-tenants (motor
-# django_tenants.postgresql_backend, TENANT_MODEL/TENANT_DOMAIN_MODEL
-# apuntando a la futura app `companies`); esa migracion queda pendiente
-# hasta que dicha app exista, para no romper la conexion basica mientras
-# tanto.
+# DA01 exige multitenencia por schema mediante django-tenants: el motor
+# django_tenants.postgresql_backend enruta cada conexion al schema correcto
+# segun TENANT_MODEL/TENANT_DOMAIN_MODEL (app `companies`).
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django_tenants.postgresql_backend',
         'NAME': os.environ.get('DB_NAME', 'activos_fijos'),
         'USER': os.environ.get('DB_USER', 'postgres'),
         'PASSWORD': os.environ.get('DB_PASSWORD', 'postgres'),
@@ -140,3 +149,59 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+
+# --- API / autenticacion ---
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'accounts.authentication.CookieJWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.ScopedRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'login': '5/min',
+    },
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+}
+
+# Cookies donde vive el JWT (nunca en el body ni en localStorage).
+AUTH_COOKIE_ACCESS = 'access'
+AUTH_COOKIE_REFRESH = 'refresh'
+AUTH_COOKIE_SAMESITE = 'Lax'
+AUTH_COOKIE_SECURE = not DEBUG          # en dev (DEBUG=True) permite http://demo.localhost
+AUTH_COOKIE_REFRESH_PATH = '/api/auth'  # el refresh solo se envia a los endpoints de auth
+
+# CSRF: el token DEBE ser legible por JS para reenviarlo en X-CSRFToken.
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = not DEBUG
+# En produccion, usar un comodin para todos los subdominios de empresas
+# (ej. https://*.sistema.com) — Django soporta el prefijo '*.' desde la
+# version 4.0. Una lista de origenes literales no escala a las empresas
+# nuevas que se dan de alta bajo el dominio wildcard (DA16).
+CSRF_TRUSTED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get(
+        'DJANGO_CSRF_TRUSTED_ORIGINS',
+        'http://localhost:5173,http://demo.localhost:5173',
+    ).split(',')
+    if o.strip()
+]
+
+# Cache local para el throttle del login (DA08). En produccion se cambia el backend (DA07).
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}

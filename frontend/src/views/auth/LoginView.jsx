@@ -1,14 +1,20 @@
 import { useState } from 'react'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Button } from '../../components/Button'
 import styles from './LoginView.module.css'
 
 export function LoginView() {
-  const { login } = useAuth()
+  const { login, isAuthenticated } = useAuth()
+  const navigate = useNavigate()
   const [usuario, setUsuario] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Si ya hay sesion (p.ej. se recargo la pagina o se navego a /login estando
+  // dentro), no mostramos el formulario: directo a la app.
+  if (isAuthenticated) return <Navigate to="/" replace />
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -20,6 +26,7 @@ export function LoginView() {
     setIsSubmitting(true)
     try {
       await login(usuario.trim(), password)
+      navigate('/', { replace: true })
     } catch (err) {
       setError(err.message)
     } finally {

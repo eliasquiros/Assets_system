@@ -86,10 +86,7 @@ describe('api/reportes', () => {
 
 describe('api/auth', () => {
   it('login POSTs credentials to /auth/login/', async () => {
-    apiFetch.mockResolvedValue({
-      token: 't1', empresa: 'Comercial Rivera S.A.',
-      usuario: { nombre: 'Marcela Rivera S.', cargo: 'Contadora general', iniciales: 'MR' },
-    })
+    apiFetch.mockResolvedValue({ username: 'mrivera', empresa: 'Comercial Rivera S.A.' })
 
     await login('mrivera', 'secreta123')
 
