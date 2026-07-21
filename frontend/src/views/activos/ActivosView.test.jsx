@@ -2,10 +2,14 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ActivosView } from './ActivosView'
-import { useActivos } from '../../hooks/useActivos'
+import { useActivos, useCrearActivo } from '../../hooks/useActivos'
 
 vi.mock('../../hooks/useActivos')
 vi.mock('../../context/ToastContext', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
+vi.mock('../../hooks/useCatalogos', () => ({
+  useCatalogo: () => ({ data: [], isLoading: false }),
+  useCrearCatalogo: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}))
 
 function renderAt(path) {
   return render(
@@ -42,6 +46,7 @@ describe('ActivosView', () => {
 
   it('opens the CrearActivoModal at /activos/nuevo', () => {
     useActivos.mockReturnValue({ data: [], isLoading: false, isError: false })
+    useCrearActivo.mockReturnValue({ mutateAsync: vi.fn(), isPending: false })
     renderAt('/activos/nuevo')
     expect(screen.getByText('Registrar nuevo activo')).toBeInTheDocument()
   })

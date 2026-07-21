@@ -28,10 +28,10 @@ describe('api/activos', () => {
     expect(apiFetch).toHaveBeenCalledWith('/activos/', { token: 't1' })
   })
 
-  it('crearActivo POSTs to /activos/', async () => {
+  it('crearActivo POSTs to /activos/crear/', async () => {
     apiFetch.mockResolvedValue({ num: 'AF-0001' })
     await crearActivo({ num: 'AF-0001' }, { token: 't1' })
-    expect(apiFetch).toHaveBeenCalledWith('/activos/', { method: 'POST', body: { num: 'AF-0001' }, token: 't1' })
+    expect(apiFetch).toHaveBeenCalledWith('/activos/crear/', { method: 'POST', body: { num: 'AF-0001' }, token: 't1' })
   })
 
   it('editarActivo PATCHes /activos/{num}/', async () => {

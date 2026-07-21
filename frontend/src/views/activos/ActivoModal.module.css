@@ -4,3 +4,4 @@
 .grid { padding: 22px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px 18px; }
 .grid input, .grid textarea, .grid select { height: 40px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 7px; font-size: 13.5px; width: 100%; }
 .actions { padding: 16px 22px; border-top: 1px solid var(--color-border-light); display: flex; justify-content: flex-end; gap: 10px; }
+.aviso { font-size: 11px; color: var(--color-warning-text); font-weight: 500; }
