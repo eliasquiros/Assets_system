@@ -6,6 +6,12 @@ import { useAuth } from '../../context/AuthContext'
 
 vi.mock('../../context/AuthContext')
 
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useNavigate: () => mockNavigate,
+}))
+
 describe('LoginView', () => {
   it('shows a validation error when submitting with empty fields', async () => {
     useAuth.mockReturnValue({ login: vi.fn() })
