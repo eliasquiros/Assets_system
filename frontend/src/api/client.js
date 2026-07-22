@@ -1,4 +1,9 @@
-const BASE_URL = import.meta.env.VITE_API_URL || '/api'
+import { resolveApiBase } from '../lib/apiBase'
+
+const BASE_URL = resolveApiBase(
+  typeof window !== 'undefined' ? window.location.hostname : '',
+  import.meta.env.VITE_API_URL,
+)
 
 export class ApiError extends Error {
   constructor(message, status) {
