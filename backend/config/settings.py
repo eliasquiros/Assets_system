@@ -46,6 +46,7 @@ ALLOWED_HOSTS = [
 
 SHARED_APPS = [
     'django_tenants',            # obligatorio primero
+    'corsheaders',
     'companies',                 # registro de empresas (schema publico)
     'django.contrib.contenttypes',
     'django.contrib.staticfiles',
@@ -70,6 +71,7 @@ DATABASE_ROUTERS = ('django_tenants.routers.TenantSyncRouter',)
 
 MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware',   # fija el schema por Host, primero
+    'corsheaders.middleware.CorsMiddleware',                 # antes de CommonMiddleware
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -197,6 +199,17 @@ CSRF_TRUSTED_ORIGINS = [
     ).split(',')
     if o.strip()
 ]
+
+# CORS: en la Opcion B el frontend vive en un subdominio distinto al backend
+# (mismo dominio padre). Se permite por regex de subdominios y con credenciales
+# para que la cookie httpOnly viaje. Vacio en dev (el proxy de Vite hace mismo
+# origen, sin CORS). En prod, ej: ^https://[a-z0-9-]+\.sistema\.com$
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r.strip()
+    for r in os.environ.get('DJANGO_CORS_ALLOWED_ORIGIN_REGEXES', '').split(',')
+    if r.strip()
+]
+CORS_ALLOW_CREDENTIALS = True
 
 # Cache local para el throttle del login (DA08). En produccion se cambia el backend (DA07).
 CACHES = {

@@ -7,3 +7,4 @@ tzdata==2026.2
 django-tenants==3.10.2
 djangorestframework==3.16.1
 djangorestframework-simplejwt==5.5.1
+django-cors-headers==4.9.0
