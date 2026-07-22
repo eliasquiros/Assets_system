@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fmtDate, fmtRemaining } from './date'
+import { calcularDepreciacionPreview } from './depreciacion'
 import { money } from './money'
 import { validateActivo, validateRetiro } from './validators'
 
@@ -80,14 +81,30 @@ describe('validateActivo', () => {
     expect(errors.costo).toBe('Debe ser mayor a cero')
   })
 
-  it('rejects a vida util of zero or less', () => {
+  it('rejects a negative vida util', () => {
     const errors = validateActivo({ ...VALID_ACTIVO, vidaUtil: '-1' })
-    expect(errors.vidaUtil).toBe('Debe ser mayor a cero')
+    expect(errors.vidaUtil).toBe('No puede ser negativa')
+  })
+
+  it('accepts a vida util of zero (activo ya totalmente depreciado)', () => {
+    const errors = validateActivo({ ...VALID_ACTIVO, vidaUtil: '0' })
+    expect(errors.vidaUtil).toBeUndefined()
   })
 
   it('rejects a start-of-use date earlier than the acquisition date', () => {
     const errors = validateActivo({ ...VALID_ACTIVO, fechaAdq: '2022-04-01', fechaUso: '2022-03-15' })
     expect(errors.fechaUso).toBe('No puede ser anterior a la fecha de adquisición')
+  })
+})
+
+describe('calcularDepreciacionPreview', () => {
+  it('treats vida util 0 as already fully depreciated', () => {
+    const preview = calcularDepreciacionPreview(850000, 0, '2022-04-01')
+    expect(preview).toEqual({ dep: 850000, libros: 0, estado: 'Totalmente depreciado' })
+  })
+
+  it('returns null for a negative vida util', () => {
+    expect(calcularDepreciacionPreview(850000, -1, '2022-04-01')).toBeNull()
   })
 })
 

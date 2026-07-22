@@ -174,6 +174,9 @@ class Activo(models.Model):
         null=True, blank=True,
     )
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    # Testigo de bloqueo optimista (RF-001): sube en cada edicion. El detalle lo
+    # expone y la edicion lo reenvia; si no coincide, la edicion se rechaza (409).
+    version = models.PositiveIntegerField(default=1)
 
     class Meta:
         db_table = 'activo'
@@ -186,9 +189,11 @@ class Activo(models.Model):
                 condition=models.Q(fecha_inicio__gte=models.F('fecha_adquisicion')),
                 name='ck_activo_fecha_inicio_valida',
             ),
+            # 0 es valido: cubre activos que se registran ya totalmente
+            # depreciados (sin fecha de inicio real conocida), ver RN-001.4/.7.
             models.CheckConstraint(
-                condition=models.Q(vida_util_anios__gt=0),
-                name='ck_activo_vida_util_positiva',
+                condition=models.Q(vida_util_anios__gte=0),
+                name='ck_activo_vida_util_no_negativa',
             ),
             models.CheckConstraint(
                 condition=models.Q(estado_depreciacion__in=['DEPRECIANDO', 'TOTALMENTE_DEPRECIADO']),
@@ -229,6 +234,7 @@ class Movimiento(models.Model):
     CAMBIO_COSTO = 'CAMBIO_COSTO'
     CAMBIO_VIDA_UTIL = 'CAMBIO_VIDA_UTIL'
     CAMBIO_AREA_TIPO = 'CAMBIO_AREA_TIPO'
+    CAMBIO_FECHAS = 'CAMBIO_FECHAS'
     BAJA = 'BAJA'
     REVERSION_BAJA = 'REVERSION_BAJA'
     TIPO_EVENTO_CHOICES = [
@@ -236,6 +242,7 @@ class Movimiento(models.Model):
         (CAMBIO_COSTO, 'Cambio de costo'),
         (CAMBIO_VIDA_UTIL, 'Cambio de vida útil'),
         (CAMBIO_AREA_TIPO, 'Cambio de área / categoría'),
+        (CAMBIO_FECHAS, 'Cambio de fechas'),
         (BAJA, 'Baja / Retiro'),
         (REVERSION_BAJA, 'Reversión de baja'),
     ]
@@ -251,6 +258,8 @@ class Movimiento(models.Model):
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='movimientos',
     )
+    # Motivo/nota opcional del cambio (solo ediciones; NULL en ALTA).
+    nota = models.TextField(null=True, blank=True)
 
     class Meta:
         db_table = 'movimiento'
@@ -260,7 +269,7 @@ class Movimiento(models.Model):
             models.CheckConstraint(
                 condition=models.Q(tipo_evento__in=[
                     'ALTA', 'CAMBIO_COSTO', 'CAMBIO_VIDA_UTIL',
-                    'CAMBIO_AREA_TIPO', 'BAJA', 'REVERSION_BAJA',
+                    'CAMBIO_AREA_TIPO', 'CAMBIO_FECHAS', 'BAJA', 'REVERSION_BAJA',
                 ]),
                 name='ck_movimiento_tipo_evento',
             ),

@@ -257,11 +257,14 @@ CREATE TABLE activo (
     origen_id                       BIGINT          REFERENCES catalogo_origenes(id) ON DELETE RESTRICT,
     proveedor_id                    BIGINT          REFERENCES catalogo_proveedores(id) ON DELETE RESTRICT,
     fecha_creacion                  TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    version                         INTEGER         NOT NULL DEFAULT 1,
 
     CONSTRAINT uq_activo_numero_activo UNIQUE (numero_activo),
     CONSTRAINT ck_activo_costo_original_positivo CHECK (costo_original > 0),
     CONSTRAINT ck_activo_fecha_inicio_valida CHECK (fecha_inicio >= fecha_adquisicion),
-    CONSTRAINT ck_activo_vida_util_positiva CHECK (vida_util_anios > 0),
+    -- 0 es valido: cubre activos que se registran ya totalmente depreciados
+    -- (sin fecha de inicio real conocida), ver RN-001.4/.7.
+    CONSTRAINT ck_activo_vida_util_no_negativa CHECK (vida_util_anios >= 0),
     CONSTRAINT ck_activo_estado_depreciacion CHECK (
         estado_depreciacion IN ('DEPRECIANDO', 'TOTALMENTE_DEPRECIADO')
     ),
@@ -355,11 +358,12 @@ CREATE TABLE movimiento (
     fecha_registro  TIMESTAMPTZ     NOT NULL DEFAULT now(),
     usuario_id      BIGINT          NOT NULL REFERENCES usuario(id) ON DELETE RESTRICT,
     retiro_id       BIGINT          REFERENCES retiro(id) ON DELETE RESTRICT,
+    nota            TEXT,
 
     CONSTRAINT ck_movimiento_tipo_evento CHECK (
         tipo_evento IN (
             'ALTA', 'CAMBIO_COSTO', 'CAMBIO_VIDA_UTIL',
-            'CAMBIO_AREA_TIPO', 'BAJA', 'REVERSION_BAJA'
+            'CAMBIO_AREA_TIPO', 'CAMBIO_FECHAS', 'BAJA', 'REVERSION_BAJA'
         )
     ),
 
@@ -380,6 +384,9 @@ CREATE TABLE movimiento (
             WHEN tipo_evento = 'CAMBIO_AREA_TIPO' THEN
                 (valor_anterior ? 'localizacion_id' OR valor_anterior ? 'categoria_id')
                 AND (valor_nuevo ? 'localizacion_id' OR valor_nuevo ? 'categoria_id')
+            WHEN tipo_evento = 'CAMBIO_FECHAS' THEN
+                (valor_anterior ? 'fecha_inicio' OR valor_anterior ? 'fecha_adquisicion')
+                AND (valor_nuevo ? 'fecha_inicio' OR valor_nuevo ? 'fecha_adquisicion')
             WHEN tipo_evento IN ('BAJA', 'REVERSION_BAJA') THEN
                 valor_anterior ? 'estado_depreciacion' AND valor_nuevo ? 'estado_depreciacion'
                 AND retiro_id IS NOT NULL
