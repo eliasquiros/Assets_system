@@ -3,11 +3,12 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ActivosView } from './ActivosView'
 import { useActivos, useCrearActivo } from '../../hooks/useActivos'
+import { useCatalogo } from '../../hooks/useCatalogos'
 
 vi.mock('../../hooks/useActivos')
 vi.mock('../../context/ToastContext', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../hooks/useCatalogos', () => ({
-  useCatalogo: () => ({ data: [], isLoading: false }),
+  useCatalogo: vi.fn(() => ({ data: [], isLoading: false })),
   useCrearCatalogo: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 
@@ -42,6 +43,19 @@ describe('ActivosView', () => {
     renderAt('/activos')
     expect(screen.getByText('AF-0001')).toBeInTheDocument()
     expect(screen.getByText('Todos los activos')).toBeInTheDocument()
+  })
+
+  it('llena los filtros de área y categoría con las opciones del catálogo (BD)', () => {
+    useActivos.mockReturnValue({ data: [], isLoading: false, isError: false })
+    useCatalogo.mockImplementation((tipo) => ({
+      data: tipo === 'localizaciones' ? [{ id: 1, nombre: 'Bodega Nueva' }]
+        : tipo === 'categorias' ? [{ id: 2, nombre: 'Categoría Nueva' }]
+        : [],
+      isLoading: false,
+    }))
+    renderAt('/activos')
+    expect(screen.getByRole('option', { name: 'Bodega Nueva' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Categoría Nueva' })).toBeInTheDocument()
   })
 
   it('opens the CrearActivoModal at /activos/nuevo', () => {

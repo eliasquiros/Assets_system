@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Route, Routes, useNavigate } from 'react-router-dom'
 import { useActivos } from '../../hooks/useActivos'
+import { useCatalogo } from '../../hooks/useCatalogos'
 import { ActivoFilters } from './ActivoFilters'
 import { ActivoSummaryBar } from './ActivoSummaryBar'
 import { ActivoTable } from './ActivoTable'
@@ -9,9 +10,6 @@ import { EditarActivoModal } from './EditarActivoModal'
 import { ActivoDetailDrawer } from './ActivoDetailDrawer'
 import { Button } from '../../components/Button'
 
-const AREAS = ['Bodega Central', 'Oficinas Administrativas', 'Planta de Producción', 'Sucursal San Pedro', 'Departamento de Transporte']
-const TIPOS = ['Equipo de cómputo', 'Mobiliario y enseres', 'Maquinaria industrial', 'Vehículos', 'Equipo de oficina']
-
 export function ActivosView() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
@@ -19,6 +17,14 @@ export function ActivosView() {
   const [tipo, setTipo] = useState('')
   const { data, isLoading, isError } = useActivos({ search, area, tipo })
   const activos = data || []
+
+  // Las opciones de los filtros salen de los catálogos de la BD (mismas queries
+  // que el alta inline del modal), así un área o categoría recién creada aparece
+  // aquí sin recargar. El backend filtra por nombre, así que ese es el value.
+  const { data: localizaciones } = useCatalogo('localizaciones')
+  const { data: categorias } = useCatalogo('categorias')
+  const areas = (localizaciones || []).map((l) => l.nombre)
+  const tipos = (categorias || []).map((c) => c.nombre)
   const label = area || tipo
     ? [area, tipo].filter(Boolean).join(' · ')
     : (search ? 'Resultados de búsqueda' : 'Todos los activos')
@@ -30,7 +36,7 @@ export function ActivosView() {
         <Button onClick={() => navigate('/activos/nuevo')}>+ Registrar activo</Button>
       </div>
       <ActivoFilters
-        search={search} area={area} tipo={tipo} areas={AREAS} tipos={TIPOS}
+        search={search} area={area} tipo={tipo} areas={areas} tipos={tipos}
         onSearchChange={setSearch} onAreaChange={setArea} onTipoChange={setTipo}
         onClear={() => { setSearch(''); setArea(''); setTipo('') }}
       />
