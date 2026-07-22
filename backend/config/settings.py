@@ -218,6 +218,11 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
+# Token compartido que protege el endpoint interno de tareas (recalculo mensual
+# de depreciacion disparado por pg_cron via pg_net). Fail-closed: si esta vacio,
+# el endpoint responde 503 y no ejecuta nada.
+INTERNAL_TASK_TOKEN = os.environ.get('DJANGO_INTERNAL_TASK_TOKEN', '')
+
 # Cache local para el throttle del login (DA08). En produccion se cambia el backend (DA07).
 CACHES = {
     'default': {

@@ -53,10 +53,12 @@ flowchart TB
     SchemaEmpresa --> PG
     Disposals -->|enlace firmado temporal, RS005| Storage
 
-    Cron[Tarea programada del proveedor de hospedaje]
-    Comando[Comando de gestion de Django]
-    Cron -->|disparo diario| Comando
-    Comando -->|actualiza valor en libros actual| Assets
+    PgCron[pg_cron: agenda mensual en la base de datos]
+    PgNet[pg_net: peticion HTTP saliente]
+    Interno[Endpoint interno: token compartido]
+    PgCron -->|disparo el dia 1 de cada mes| PgNet
+    PgNet -->|POST con token| Interno
+    Interno -->|recorre empresas y actualiza valor en libros| Assets
 
     CacheDjango[Cache de Django respaldada en PostgreSQL]
     API -->|limitacion de intentos de inicio de sesion| CacheDjango
@@ -110,23 +112,23 @@ flowchart TB
 
 **Contexto.** Consultar el valor en libros de miles de activos en un listado (RF002.3, RP001) debe resolverse en menos de tres segundos. Recalcular el historial completo de cada activo en cada lectura de un listado sería innecesario cuando la mayoría de consultas piden simplemente el valor de hoy.
 
-**Decisión.** El modelo `Activo` guarda un campo de valor en libros actual y depreciación acumulada actual, concebido únicamente como atajo de lectura rápida. Ese campo se actualiza de inmediato ante cualquier evento relevante del historial (cambio de costo, cambio de vida útil, baja definitiva) y, adicionalmente, mediante un proceso diario que lo avanza con el simple paso del tiempo. Cualquier consulta a una fecha pasada ignora este campo y recalcula desde el historial según DA04.
+**Decisión.** El modelo `Activo` guarda un campo de valor en libros actual y depreciación acumulada actual, concebido únicamente como atajo de lectura rápida. Ese campo se actualiza de inmediato ante cualquier evento relevante del historial (cambio de costo, cambio de vida útil, baja definitiva) y, adicionalmente, mediante un proceso mensual que lo avanza con el simple paso del tiempo (ver DA06). Cualquier consulta a una fecha pasada ignora este campo y recalcula desde el historial según DA04.
 
 **Justificación.** El historial sigue siendo la única fuente de verdad, ya que este campo es enteramente derivable de él en cualquier momento; su único propósito es evitar recalcular en cada lectura algo que ya se conoce para la fecha de hoy.
 
 **Trazabilidad.** RF002.3, RP001, RN001.3.
 
-## DA06. Proceso diario mediante comando de Django y tarea programada externa, sin Celery
+## DA06. Recálculo mensual mediante núcleo en Python disparado por pg_cron, sin Celery
 
-**Contexto.** El campo definido en DA05 necesita actualizarse una vez al día. RP002 pide explícitamente evitar procesamiento en segundo plano para la generación de reportes, y el principio de diseño número cuatro del proyecto pide evitar sobreingeniería hasta que el volumen real lo justifique.
+**Contexto.** El campo definido en DA05 necesita avanzar con el paso del tiempo. El cálculo obligatoriamente vive en Python (DA04: una sola fórmula auditable, reutilizada por el registro y por el recálculo), mientras que el disparo periódico conviene resolverlo con la infraestructura que ya se tiene. RP002 pide evitar procesamiento en segundo plano para reportes, y el principio de diseño número cuatro del proyecto pide evitar sobreingeniería.
 
-**Decisión.** La actualización diaria se implementa como un comando de gestión de Django, disparado por una tarea programada externa provista por el proveedor de hospedaje o un servicio equivalente. No se introduce Celery ni un intermediario de mensajes como Redis para esta tarea.
+**Decisión.** El recálculo se ejecuta una vez al mes, el primer día del mes, con corte en esa misma fecha (coherente con el corte que usa el registro de un activo). Se implementa en tres piezas que comparten un único núcleo: una función que recorre cada empresa y recalcula sus activos reutilizando `calcular_depreciacion` (DA04), persistiendo solo los que cambiaron y sin escribir en el historial; un comando de gestión de Django que expone ese núcleo para correrlo a mano; y un endpoint interno HTTP que activa el mismo núcleo. El disparo lo hace la extensión `pg_cron` de la base de datos, que —como solo ejecuta SQL— llama al endpoint mediante la extensión `pg_net` (una petición HTTP mensual). El endpoint se protege con un token secreto compartido en un header, comparado en tiempo constante y fail-closed si no está configurado. No se introduce Celery ni un intermediario de mensajes como Redis.
 
-**Justificación.** La tarea es simple, idempotente, y no requiere reintentos complejos ni monitoreo especializado. Introducir Celery añadiría una pieza de infraestructura nueva que operar y pagar desde el primer día, para un beneficio que hoy no existe.
+**Justificación.** El cálculo mensual es simple, idempotente y no requiere reintentos complejos ni monitoreo especializado; Celery añadiría una pieza de infraestructura que operar y pagar desde el primer día, sin beneficio actual. Usar `pg_cron` aprovecha la base de datos gestionada que ya se tiene (Supabase) como agendador, sin depender de un servicio de cron externo; el cálculo, en cambio, permanece íntegramente en Python, evitando duplicar la lógica de negocio en SQL. Que el disparo (SQL) y el cálculo (Python) queden separados por una llamada HTTP mantiene una sola fuente de verdad para la fórmula. El backend, al ser un proceso siempre encendido, recalcula todas las empresas en una sola invocación sin límite de tiempo; el núcleo por-empresa permite trocear el trabajo si en el futuro el volumen de empresas lo justifica.
 
-**Alternativas descartadas.** Celery con Celery Beat, justificable únicamente si en el futuro aparecen tareas asíncronas más pesadas o que requieran reintentos automáticos.
+**Alternativas descartadas.** Reproducir la fórmula de depreciación en SQL dentro de `pg_cron` (duplicaría la lógica de negocio en dos lenguajes, contra la trazabilidad de DA04). Celery con Celery Beat, justificable solo si aparecen tareas asíncronas más pesadas o con reintentos automáticos. Un cron externo del proveedor de hospedaje llamando al comando de gestión (válido, pero prescinde del agendador que la base de datos ya ofrece).
 
-**Trazabilidad.** RP002, principio de diseño número cuatro del proyecto.
+**Trazabilidad.** RP002, DA04, DA05, principio de diseño número cuatro del proyecto.
 
 ## DA07. Sin caché dedicada para datos de negocio en el producto mínimo viable
 
