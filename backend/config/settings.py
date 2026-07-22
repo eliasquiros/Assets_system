@@ -16,6 +16,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from config.env import resolver_secret_key
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -25,14 +27,11 @@ load_dotenv(BASE_DIR / '.env')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    'DJANGO_SECRET_KEY',
-    'django-insecure-f+if@u3vpin#lef!q^a7m&7=i&iv&y1*_5p$doo#1ttsq&g#l!',
-)
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+
+# SECURITY WARNING: en produccion DJANGO_SECRET_KEY es obligatorio (fail-closed).
+SECRET_KEY = resolver_secret_key(os.environ, DEBUG)
 
 # DA16: cada empresa se sirve desde su propio subdominio (ej. acme.localhost
 # en desarrollo). Se acepta el dominio base y cualquier subdominio suyo.
