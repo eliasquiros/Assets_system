@@ -5,6 +5,7 @@ from .catalogos import (
     ModeloListCreate, OrigenList, ProveedorListCreate,
 )
 from .internal import ActualizarDepreciacionView
+from .reportes import ReporteAuditoriaView
 from .views import (
     ActivoCreateView, ActivoDetailView, ActivoListView,
     MovimientoListView, SiguienteNumeroView,
@@ -23,6 +24,8 @@ urlpatterns = [
     path('catalogos/marcas/', MarcaListCreate.as_view(), name='cat-marcas'),
     path('catalogos/modelos/', ModeloListCreate.as_view(), name='cat-modelos'),
     path('catalogos/origenes/', OrigenList.as_view(), name='cat-origenes'),
+
+    path('reportes/auditoria/', ReporteAuditoriaView.as_view(), name='reporte-auditoria'),
 
     # Tarea interna (pg_cron): recalculo mensual de depreciacion. No es de un
     # tenant; protegida por token, no por sesion.
