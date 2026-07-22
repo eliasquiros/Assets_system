@@ -95,6 +95,13 @@ class ActivosApiTest(TenantTestCase):
         self.assertEqual(resp.data['num'], 'AF-0001')
         self.assertEqual(resp.data['fechaUso'], '2022-04-01')
 
+    def test_detalle_incluye_version_e_ids_de_catalogo(self):
+        resp = self.client.get('/api/activos/AF-0001/', HTTP_HOST=self.host)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['version'], 1)
+        self.assertIsInstance(resp.data['categoriaId'], int)
+        self.assertIn('localizacionId', resp.data)
+
     def test_detalle_inexistente_da_404(self):
         resp = self.client.get('/api/activos/AF-9999/', HTTP_HOST=self.host)
         self.assertEqual(resp.status_code, 404)
@@ -237,6 +244,106 @@ class RegistrarActivoApiTest(TenantTestCase):
         r2 = self._post('/api/catalogos/modelos/', {'nombre': 'Modelo nuevo', 'marca': self.marca.id})
         self.assertEqual(r2.status_code, 201)
         self.assertEqual(r2.data['marca'], self.marca.id)
+
+
+class EditarActivoApiTest(TenantTestCase):
+    """Edicion de activos (RF-001/RF-007): un movimiento por dimension auditable,
+    recalculo de depreciacion, bloqueo optimista por version y validacion."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with tenant_context(cls.tenant):
+            cls.user = Usuario.objects.create_user(username='ed', password='secreta123')
+            cls.cat = Categoria.objects.create(nombre='Cómputo', prefijo='COM')
+            cls.loc = Localizacion.objects.create(nombre='Oficinas')
+            cls.loc2 = Localizacion.objects.create(nombre='Bodega')
+            cls.prov = Proveedor.objects.create(nombre='Dell CR')
+            cls.origen = Origen.objects.create(nombre='Dentro de inversión')
+        cls.host = cls.tenant.get_primary_domain().domain
+
+    def setUp(self):
+        self.client = APIClient()
+        with tenant_context(self.tenant):
+            access = str(crear_refresh(self.user).access_token)
+            Activo.objects.create(
+                numero_activo='COM-0001', nombre='Laptop',
+                costo_original=Decimal('800000'), valor_libros_actual=Decimal('400000'),
+                depreciacion_acumulada_actual=Decimal('400000'),
+                fecha_adquisicion=date(2022, 1, 1), fecha_inicio=date(2022, 1, 1),
+                vida_util_anios=5, estado_depreciacion='DEPRECIANDO',
+                localizacion=self.loc, categoria=self.cat, proveedor=self.prov,
+                origen=self.origen, version=1,
+            )
+        self.client.cookies['access'] = access
+
+    def _payload(self, **over):
+        data = dict(
+            nombre='Laptop', costo='800000', fechaAdq='2022-01-01', fechaUso='2022-01-01',
+            vidaUtil=5, serie=None, factura='F-1',
+            categoria=self.cat.id, localizacion=self.loc.id, proveedor=self.prov.id,
+            marca=None, modelo=None, origen=self.origen.id, version=1, motivo='',
+        )
+        data.update(over)
+        return data
+
+    def _patch(self, **over):
+        return self.client.patch('/api/activos/COM-0001/', self._payload(**over),
+                                 format='json', HTTP_HOST=self.host)
+
+    def test_cambio_costo_crea_un_movimiento_y_recalcula(self):
+        resp = self._patch(costo='1000000', motivo='ajuste contable')
+        self.assertEqual(resp.status_code, 200)
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='COM-0001')
+            self.assertEqual(activo.costo_original, Decimal('1000000'))
+            self.assertEqual(activo.version, 2)
+            movs = list(activo.movimientos.all())
+            self.assertEqual(len(movs), 1)
+            self.assertEqual(movs[0].tipo_evento, Movimiento.CAMBIO_COSTO)
+            self.assertEqual(movs[0].valor_nuevo, {'costo_original': '1000000.00'})
+            self.assertEqual(movs[0].nota, 'ajuste contable')
+            # dep + libros == costo: el backend recalculo, no el cliente.
+            self.assertEqual(activo.depreciacion_acumulada_actual + activo.valor_libros_actual,
+                             activo.costo_original)
+
+    def test_cambios_multiples_crean_un_movimiento_por_dimension(self):
+        resp = self._patch(costo='900000', vidaUtil=8,
+                           localizacion=self.loc2.id, fechaUso='2022-06-01')
+        self.assertEqual(resp.status_code, 200)
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='COM-0001')
+            tipos = {m.tipo_evento for m in activo.movimientos.all()}
+            self.assertEqual(tipos, {
+                Movimiento.CAMBIO_COSTO, Movimiento.CAMBIO_VIDA_UTIL,
+                Movimiento.CAMBIO_AREA_TIPO, Movimiento.CAMBIO_FECHAS,
+            })
+
+    def test_editar_descriptivo_no_genera_movimiento(self):
+        resp = self._patch(nombre='Laptop nueva')
+        self.assertEqual(resp.status_code, 200)
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='COM-0001')
+            self.assertEqual(activo.nombre, 'Laptop nueva')
+            self.assertEqual(activo.version, 2)
+            self.assertEqual(activo.movimientos.count(), 0)
+
+    def test_version_obsoleta_da_409_sin_persistir(self):
+        resp = self._patch(nombre='Pisado', version=99)
+        self.assertEqual(resp.status_code, 409)
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='COM-0001')
+            self.assertEqual(activo.nombre, 'Laptop')
+            self.assertEqual(activo.version, 1)
+            self.assertEqual(activo.movimientos.count(), 0)
+
+    def test_costo_invalido_da_400_sin_movimiento(self):
+        resp = self._patch(costo='0')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('costo', resp.data)
+        with tenant_context(self.tenant):
+            self.assertEqual(
+                Activo.objects.get(numero_activo='COM-0001').movimientos.count(), 0)
 
 
 class AislamientoActivosTest(TenantTestCase):

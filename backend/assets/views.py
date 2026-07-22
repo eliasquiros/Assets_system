@@ -7,14 +7,16 @@ consulta corre siempre contra el schema del subdominio, nunca contra otro.
 """
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
+from rest_framework.generics import (
+    CreateAPIView, ListAPIView, RetrieveUpdateAPIView,
+)
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Activo, Categoria, Movimiento
 from .serializers import (
-    ActivoCreateSerializer, ActivoDetailSerializer, ActivoListSerializer,
-    MovimientoSerializer,
+    ActivoCreateSerializer, ActivoDetailSerializer, ActivoEditSerializer,
+    ActivoListSerializer, MovimientoSerializer,
 )
 
 
@@ -37,14 +39,23 @@ class ActivoListView(ListAPIView):
         return qs.order_by('numero_activo')
 
 
-class ActivoDetailView(RetrieveAPIView):
-    """GET /api/activos/<num>/ — un activo por su numero (el "ver mas" del drawer)."""
-    serializer_class = ActivoDetailSerializer
+class ActivoDetailView(RetrieveUpdateAPIView):
+    """GET /api/activos/<num>/ (detalle, "ver mas") y PATCH (edicion, RF-001/RF-007).
+
+    El GET usa el serializer de detalle; el PATCH usa el de edicion, que valida,
+    aplica bajo bloqueo optimista por `version` y registra los movimientos. No se
+    permite PUT: la edicion es siempre parcial sobre el activo existente."""
     queryset = Activo.objects.select_related(
         'localizacion', 'categoria', 'proveedor', 'marca', 'modelo', 'origen',
     )
     lookup_field = 'numero_activo'
     lookup_url_kwarg = 'num'
+    http_method_names = ['get', 'patch', 'head', 'options']
+
+    def get_serializer_class(self):
+        if self.request.method == 'PATCH':
+            return ActivoEditSerializer
+        return ActivoDetailSerializer
 
 
 class MovimientoListView(ListAPIView):
