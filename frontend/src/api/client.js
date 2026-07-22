@@ -97,3 +97,27 @@ export async function apiFetch(path, { method = 'GET', body, headers, _retry = t
   if (response.status === 204) return null
   return response.json()
 }
+
+// Descarga binaria (ej. XLSX): trae el cuerpo como blob con la sesion vigente y
+// dispara la descarga en el navegador con el nombre indicado. Usa la misma base
+// y credenciales que apiFetch, pero no intenta parsear JSON del cuerpo exitoso.
+export async function descargarArchivo(path, filename) {
+  let response
+  try {
+    response = await fetch(`${BASE_URL}${path}`, { credentials: 'include' })
+  } catch {
+    throw new ApiError('No se pudo conectar con el servidor', 0)
+  }
+  if (!response.ok) {
+    throw new ApiError(`Error ${response.status}`, response.status)
+  }
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}

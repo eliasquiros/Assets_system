@@ -115,11 +115,11 @@ describe('useRevertirBaja', () => {
 })
 
 describe('useGenerarAuditoria', () => {
-  it('calls generarReporteAuditoria', async () => {
-    reportesApi.generarReporteAuditoria.mockResolvedValue({ activos: [], total: 0 })
+  it('calls descargarReporteAuditoria with the chosen year', async () => {
+    reportesApi.descargarReporteAuditoria.mockResolvedValue(undefined)
     const { result } = renderHook(() => useGenerarAuditoria(), { wrapper })
-    await result.current.mutateAsync()
-    expect(reportesApi.generarReporteAuditoria).toHaveBeenCalledWith({})
+    await result.current.mutateAsync(2024)
+    expect(reportesApi.descargarReporteAuditoria).toHaveBeenCalledWith(2024)
   })
 })
 

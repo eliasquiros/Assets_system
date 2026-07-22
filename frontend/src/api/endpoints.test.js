@@ -3,10 +3,10 @@
 // forwards, with no logic of its own. apiFetch's own behavior (headers,
 // error normalization) is covered separately in client.test.js.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { apiFetch } from './client'
+import { apiFetch, descargarArchivo } from './client'
 import { crearActivo, editarActivo, listarActivos, obtenerActivo, obtenerMovimientos } from './activos'
 import { listarBajas, registrarBaja, revertirBaja } from './bajas'
-import { generarReporteAuditoria, generarReporteFinanciero } from './reportes'
+import { descargarReporteAuditoria, generarReporteFinanciero } from './reportes'
 import { login } from './auth'
 
 vi.mock('./client')
@@ -71,10 +71,11 @@ describe('api/bajas', () => {
 })
 
 describe('api/reportes', () => {
-  it('generarReporteAuditoria fetches /reportes/auditoria/', async () => {
-    apiFetch.mockResolvedValue({ activos: [], total: 0 })
-    await generarReporteAuditoria({ token: 't1' })
-    expect(apiFetch).toHaveBeenCalledWith('/reportes/auditoria/', { token: 't1' })
+  it('descargarReporteAuditoria descarga el xlsx del año', async () => {
+    descargarArchivo.mockResolvedValue(undefined)
+    await descargarReporteAuditoria(2024)
+    expect(descargarArchivo).toHaveBeenCalledWith(
+      '/reportes/auditoria/?anio=2024', 'reporte_auditoria_2024.xlsx')
   })
 
   it('generarReporteFinanciero fetches /reportes/financiero/ with the cutoff month', async () => {
