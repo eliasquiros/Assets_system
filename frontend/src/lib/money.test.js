@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { money, formatMontoInput, parseMonto } from './money'
 
 describe('money', () => {
+  // money() usa un espacio NO separable entre el ₡ y el número; se normaliza
+  // a espacio normal al comparar (ver money.js).
+  const fmt = (n) => money(n).replace(/ /g, ' ')
+
   it('agrupa miles con puntos', () => {
-    expect(money(500000)).toBe('₡ 500.000')
-    expect(money(1234567)).toBe('₡ 1.234.567')
+    expect(fmt(500000)).toBe('₡ 500.000')
+    expect(fmt(1234567)).toBe('₡ 1.234.567')
   })
 })
 
