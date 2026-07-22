@@ -189,9 +189,11 @@ class Activo(models.Model):
                 condition=models.Q(fecha_inicio__gte=models.F('fecha_adquisicion')),
                 name='ck_activo_fecha_inicio_valida',
             ),
+            # 0 es valido: cubre activos que se registran ya totalmente
+            # depreciados (sin fecha de inicio real conocida), ver RN-001.4/.7.
             models.CheckConstraint(
-                condition=models.Q(vida_util_anios__gt=0),
-                name='ck_activo_vida_util_positiva',
+                condition=models.Q(vida_util_anios__gte=0),
+                name='ck_activo_vida_util_no_negativa',
             ),
             models.CheckConstraint(
                 condition=models.Q(estado_depreciacion__in=['DEPRECIANDO', 'TOTALMENTE_DEPRECIADO']),

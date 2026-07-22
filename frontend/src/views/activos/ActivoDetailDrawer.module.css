@@ -65,8 +65,12 @@
 .dato { min-width: 0; }
 
 /* --- Historial: seccion destacada y mas grande --- */
-.history { padding: 0; overflow: hidden; }
+/* max-height + flex column: el encabezado queda fijo y .timeline scrollea
+   por su cuenta cuando hay muchos movimientos (una edicion puede insertar
+   varios de una vez), sin arrastrar el resto de la ficha con el scroll. */
+.history { padding: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 360px; }
 .historyHead {
+  flex: 0 0 auto;
   display: flex; align-items: center; gap: 10px;
   padding: 16px 20px; border-bottom: 1px solid var(--color-border-light);
   background: linear-gradient(0deg, #fff, #F7F9FC);
@@ -79,7 +83,7 @@
 }
 .empty { padding: 26px 20px; text-align: center; color: var(--color-muted-2); font-size: 13px; }
 
-.timeline { list-style: none; margin: 0; padding: 8px 20px 18px; }
+.timeline { list-style: none; margin: 0; padding: 8px 20px 18px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 .histItem { position: relative; display: flex; gap: 14px; padding: 14px 0; }
 .histItem:not(:last-child) { border-bottom: 1px solid var(--color-border-light); }
 /* Punto + linea vertical de timeline */

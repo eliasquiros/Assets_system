@@ -16,8 +16,8 @@ export function validateActivo(values) {
   if (values.costo && Number(values.costo) <= 0) {
     errors.costo = 'Debe ser mayor a cero'
   }
-  if (values.vidaUtil && Number(values.vidaUtil) <= 0) {
-    errors.vidaUtil = 'Debe ser mayor a cero'
+  if (values.vidaUtil && Number(values.vidaUtil) < 0) {
+    errors.vidaUtil = 'No puede ser negativa'
   }
   if (values.fechaAdq && values.fechaUso && values.fechaUso < values.fechaAdq) {
     errors.fechaUso = 'No puede ser anterior a la fecha de adquisición'
@@ -44,7 +44,7 @@ export function validateActivoNuevo(values) {
     }
   })
   if (values.costo && parseMonto(values.costo) <= 0) errors.costo = 'Debe ser mayor a cero'
-  if (values.vidaUtil && Number(values.vidaUtil) <= 0) errors.vidaUtil = 'Debe ser mayor a cero'
+  if (values.vidaUtil && Number(values.vidaUtil) < 0) errors.vidaUtil = 'No puede ser negativa'
   if (values.fechaAdq && values.fechaUso && values.fechaUso < values.fechaAdq) {
     errors.fechaUso = 'No puede ser anterior a la fecha de adquisición'
   }

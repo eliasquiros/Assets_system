@@ -262,7 +262,9 @@ CREATE TABLE activo (
     CONSTRAINT uq_activo_numero_activo UNIQUE (numero_activo),
     CONSTRAINT ck_activo_costo_original_positivo CHECK (costo_original > 0),
     CONSTRAINT ck_activo_fecha_inicio_valida CHECK (fecha_inicio >= fecha_adquisicion),
-    CONSTRAINT ck_activo_vida_util_positiva CHECK (vida_util_anios > 0),
+    -- 0 es valido: cubre activos que se registran ya totalmente depreciados
+    -- (sin fecha de inicio real conocida), ver RN-001.4/.7.
+    CONSTRAINT ck_activo_vida_util_no_negativa CHECK (vida_util_anios >= 0),
     CONSTRAINT ck_activo_estado_depreciacion CHECK (
         estado_depreciacion IN ('DEPRECIANDO', 'TOTALMENTE_DEPRECIADO')
     ),

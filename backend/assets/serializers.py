@@ -140,8 +140,8 @@ class ActivoCreateSerializer(serializers.ModelSerializer):
         costo = attrs.get('costo_original')
         if costo is not None and costo <= 0:
             raise serializers.ValidationError({'costo': 'Debe ser mayor a cero.'})
-        if attrs.get('vida_util_anios', 1) <= 0:
-            raise serializers.ValidationError({'vidaUtil': 'Debe ser mayor a cero.'})
+        if attrs.get('vida_util_anios', 0) < 0:
+            raise serializers.ValidationError({'vidaUtil': 'No puede ser negativa.'})
         if attrs['fecha_inicio'] < attrs['fecha_adquisicion']:
             raise serializers.ValidationError(
                 {'fechaUso': 'La fecha de inicio no puede ser anterior a la de adquisición.'})
@@ -230,8 +230,8 @@ class ActivoEditSerializer(serializers.ModelSerializer):
         costo = attrs.get('costo_original')
         if costo is not None and costo <= 0:
             raise serializers.ValidationError({'costo': 'Debe ser mayor a cero.'})
-        if attrs.get('vida_util_anios', 1) <= 0:
-            raise serializers.ValidationError({'vidaUtil': 'Debe ser mayor a cero.'})
+        if attrs.get('vida_util_anios', 0) < 0:
+            raise serializers.ValidationError({'vidaUtil': 'No puede ser negativa.'})
         inicio, adq = attrs.get('fecha_inicio'), attrs.get('fecha_adquisicion')
         if inicio and adq and inicio < adq:
             raise serializers.ValidationError(

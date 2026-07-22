@@ -149,7 +149,7 @@ Todo tipo de dato, restricción y motivo de diseño aquí descrito corresponde e
 | `costo_original` | `NUMERIC(14,2)` | NOT NULL, `CHECK > 0` | RN-001.6 |
 | `fecha_adquisicion` | `DATE` | NOT NULL | Cuándo la empresa obtuvo el activo |
 | `fecha_inicio` | `DATE` | NOT NULL, `CHECK ≥ fecha_adquisicion` | Cuándo comenzó a usarse; el cálculo de depreciación usa siempre esta fecha (RN-001.2, RF-001.2) |
-| `vida_util_anios` | `INTEGER` | NOT NULL, `CHECK > 0` | Ingresada a mano (RN-001.4) |
+| `vida_util_anios` | `INTEGER` | NOT NULL, `CHECK ≥ 0` | Ingresada a mano (RN-001.4). `0` es válido: registra un activo ya totalmente depreciado |
 | `estado_depreciacion` | `VARCHAR(30)` | NOT NULL, `CHECK IN ('DEPRECIANDO','TOTALMENTE_DEPRECIADO')` | RN-001.7 |
 | `valor_libros_actual` | `NUMERIC(14,2)` | NOT NULL, `CHECK ≥ 0` | Atajo de lectura (DA05) |
 | `depreciacion_acumulada_actual` | `NUMERIC(14,2)` | NOT NULL, `CHECK ≥ 0` y `CHECK ≤ costo_original` | Atajo de lectura (DA05); el segundo `CHECK` implementa RN-001.6 directamente en el motor |

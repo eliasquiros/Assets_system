@@ -180,6 +180,22 @@ class RegistrarActivoApiTest(TenantTestCase):
             self.assertEqual(movs[0].tipo_evento, Movimiento.ALTA)
             self.assertEqual(movs[0].usuario_id, self.user.id)
 
+    def test_vida_util_cero_registra_como_totalmente_depreciado(self):
+        # 0 es valido: cubre activos recibidos ya totalmente depreciados,
+        # sin fecha de inicio real conocida (RN-001.4/.7).
+        resp = self._post('/api/activos/crear/', self._payload(vidaUtil=0))
+        self.assertEqual(resp.status_code, 201)
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='SOF-0001')
+            self.assertEqual(activo.estado_depreciacion, 'TOTALMENTE_DEPRECIADO')
+            self.assertEqual(activo.depreciacion_acumulada_actual, activo.costo_original)
+            self.assertEqual(activo.valor_libros_actual, Decimal('0.00'))
+
+    def test_vida_util_negativa_da_400(self):
+        resp = self._post('/api/activos/crear/', self._payload(vidaUtil=-1))
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('vidaUtil', resp.data)
+
     def test_libros_dep_y_estado_no_se_reciben_del_cliente_se_calculan(self):
         # El cliente no puede fijar libros/dep/estado; si los envia, se ignoran.
         resp = self._post('/api/activos/crear/', self._payload(
