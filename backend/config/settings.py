@@ -114,6 +114,13 @@ DATABASES = {
     }
 }
 
+# Conexiones persistentes en hosts con proceso vivo (Render). Con el pooler de
+# Supabase, fijar DB_SSLMODE=require y apuntar DB_HOST/DB_PORT al pooler.
+DATABASES['default']['CONN_MAX_AGE'] = int(os.environ.get('DB_CONN_MAX_AGE', '0'))
+_db_sslmode = os.environ.get('DB_SSLMODE')
+if _db_sslmode:
+    DATABASES['default']['OPTIONS'] = {'sslmode': _db_sslmode}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -217,3 +224,17 @@ CACHES = {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     }
 }
+
+
+# --- Endurecimiento de produccion (solo cuando DEBUG=False) ---
+# Render/hosts PaaS terminan TLS en su proxy y reenvian el esquema en esta
+# cabecera; sin esto Django creeria que la request es http y romperia el redirect.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 año
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
