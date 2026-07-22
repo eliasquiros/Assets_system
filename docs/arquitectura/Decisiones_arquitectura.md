@@ -8,14 +8,18 @@ Este documento reúne, de forma numerada y trazable, las decisiones tomadas sobr
 
 ```mermaid
 flowchart TB
-    FE[Frontend React]
+    FE["Frontend React (host estatico, subdominio de empresa)"]
 
     subgraph Borde[Capa de borde]
         RL1[Limitacion general de solicitudes del proveedor de hospedaje]
+        CORS["CORS con credenciales, restringido a subdominios del dominio de marca"]
+        Claim[Verificacion del claim de empresa del token]
     end
 
-    FE -->|HTTPS, RS003| RL1
-    RL1 --> API[Django REST Framework]
+    FE -->|"HTTPS same-site, cookie httpOnly, RS003"| RL1
+    RL1 --> CORS
+    CORS --> Claim
+    Claim --> API["Django REST Framework (subdominio de API de la empresa)"]
 
     subgraph SchemaPublico[Schema publico de PostgreSQL]
         Companies[App companies: registro de empresas y su dominio]
@@ -229,3 +233,27 @@ flowchart TB
 **Alternativas descartadas.** Dominio único con un selector de empresa previo al login: evita el DNS wildcard, pero introduce un endpoint público nuevo (resolución de empresa) que hay que proteger contra enumeración de clientes, y no es el patrón de uso por defecto de `django-tenants`.
 
 **Trazabilidad.** DA01, DA02, DA03, RS-002, RF-006.1.
+
+## DA17. Frontend y backend como servicios separados bajo un mismo dominio de marca
+
+**Contexto.** DA16 define un subdominio por empresa, pero no especifica cómo se despliegan el frontend (build estático de React con Vite) y el backend (Django) ni cómo se relacionan sus dominios sin romper el modelo de cookies `httpOnly` de DA16 ni el aislamiento de RS-002. Un despliegue en el que el navegador vea al frontend y a la API como orígenes de dominios registrables distintos convierte la cookie de sesión en una cookie de terceros, que los navegadores bloquean de forma creciente.
+
+**Decisión.** El frontend y el backend se despliegan como servicios independientes, cada empresa servida por su subdominio bajo un único dominio registrable de marca: el frontend estático en `<empresa>.sistema.com` y la API en `<empresa>.api.sistema.com`, ambos bajo `sistema.com`. El frontend deriva la URL de su API en tiempo de ejecución a partir de su propio `Host` (insertando `api` como segundo segmento), sin fijar el dominio en el build, de modo que un único artefacto sirve a todas las empresas. Las cookies de autenticación se emiten *host-only* (sin atributo `Domain`), quedando adscritas al subdominio de API de cada empresa. El backend habilita CORS con credenciales, restringido por expresión regular a los subdominios del dominio de marca, gobernado por variable de entorno. En desarrollo el frontend usa una ruta relativa servida por el proxy de Vite, manteniendo un único origen y sin necesitar CORS.
+
+**Justificación.** Al compartir el dominio registrable, el frontend y la API son *same-site*: la cookie `httpOnly` con `SameSite=Lax` viaja del subdominio del frontend al de la API sin recurrir a `SameSite=None`, evitando la fragilidad de las cookies de terceros. Mantener las cookies *host-only* impide que la cookie de una empresa alcance el subdominio de API de otra, reforzando RS-002 en la capa del navegador. Derivar la URL en tiempo de ejecución evita compilar un artefacto por empresa. La lista blanca de CORS por expresión regular admite el alta de empresas nuevas sin cambios de código, igual que el comodín de CSRF de DA16.
+
+**Alternativas descartadas.** Frontend y backend en dominios registrables distintos (por ejemplo, los subdominios gratuitos de dos proveedores de hospedaje): obliga a cookies `SameSite=None` de terceros, frágiles ante las políticas de bloqueo de los navegadores. Un único servicio que sirva el estático y la API desde el mismo proceso: acopla ambos despliegues y renuncia a la distribución del frontend por red de entrega de contenido.
+
+**Trazabilidad.** DA01, DA16, RS-002, RS-003.
+
+## DA18. Sellado del token de sesión con la empresa emisora
+
+**Contexto.** DA03 y DA16 aíslan a los usuarios por schema y guardan el token de sesión en una cookie `httpOnly`. La clave de firma del token es única y compartida por todos los schemas, por lo que un token firmado para una empresa tiene firma válida en cualquier otra; si existiera un usuario con el mismo identificador en otra empresa, ese token podría autenticar como la persona equivocada. La topología de dominio compartido de DA17 hace concebible que una cookie mal configurada llegue al subdominio de otra empresa.
+
+**Decisión.** Cada token, tanto el de acceso como el de renovación, se sella con un dato que identifica el schema de la empresa que lo emitió. La autenticación por cookie y la renovación de sesión verifican, de forma restrictiva por defecto, que ese dato coincida con el schema fijado por el `Host` de la petición; un token sin ese dato, o con uno distinto al de la empresa activa, se rechaza.
+
+**Justificación.** La firma compartida por sí sola no ata un token a su empresa; el sello de empresa sí. Verificarlo en cada autenticación traslada el aislamiento entre empresas también a la capa de sesión, como defensa en profundidad que complementa el aislamiento por schema (DA01) y por origen de la cookie (DA16, DA17): aunque una cookie llegara al subdominio equivocado, el token no autenticaría.
+
+**Alternativas descartadas.** Una clave de firma distinta por empresa: obligaría a gestionar y rotar tantas claves como empresas, y a resolver la clave correcta antes de poder validar la firma, con mayor complejidad para el mismo efecto. Confiar únicamente en el aislamiento de la cookie por origen: deja el aislamiento a merced de un solo error de configuración del dominio de la cookie.
+
+**Trazabilidad.** RS-002, DA01, DA03, DA16, DA17.
