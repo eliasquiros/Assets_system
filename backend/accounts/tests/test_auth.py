@@ -5,9 +5,8 @@ from django_tenants.test.cases import TenantTestCase
 from django_tenants.utils import get_public_schema_name, schema_context, tenant_context
 from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.throttling import ScopedRateThrottle
-from rest_framework_simplejwt.tokens import RefreshToken
-
 from accounts.models import Usuario
+from accounts.tokens import crear_refresh
 from companies.models import Domain, Empresa
 
 
@@ -135,6 +134,70 @@ class AislamientoEntreEmpresasTest(TenantTestCase):
         # corridas al crear el schema siguen pendientes hasta el commit).
 
 
+class TokenTenantClaimTest(TenantTestCase):
+    """RS-002: un access token emitido para una empresa no debe autenticar en
+    otra, aunque la firma sea valida (el SECRET_KEY es compartido) y exista un
+    usuario con el mismo id en la otra empresa. Sin un claim de tenant en el
+    JWT, un token de A (user_id=1) reenviado al Host de B autenticaria como el
+    usuario 1 de B — el puente entre empresas que la Opcion B debe cerrar."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # Empresa A = tenant de prueba. Un solo usuario -> id=1.
+        with tenant_context(cls.tenant):
+            cls.user_a = Usuario.objects.create_user(username='userA', password='secreta123')
+        cls.host_a = cls.tenant.get_primary_domain().domain
+
+    def setUp(self):
+        cache.clear()
+
+    def _crear_empresa_b_con_id_colisionado(self):
+        """Empresa B independiente con un usuario que colisiona en id con el de
+        A (ambos =1). Se crea dentro del test (no en setUpClass) por la misma
+        razon que AislamientoEntreEmpresasTest: el CREATE SCHEMA se revierte con
+        el rollback de la transaccion atomica de cada test. Sin la colision de
+        id el test no probaria nada: el rechazo vendria de 'usuario inexistente'
+        y no de la verificacion de empresa."""
+        with schema_context(get_public_schema_name()):
+            empresa_b = Empresa(schema_name='empresa_b_claim', nombre='B', activa=True)
+            empresa_b.save()
+            Domain.objects.create(domain='b-claim.localhost', tenant=empresa_b, is_primary=True)
+        with tenant_context(empresa_b):
+            user_b = Usuario.objects.create_user(username='userB', password='secreta123')
+        self.assertEqual(self.user_a.id, user_b.id)
+
+    def _login_en_a(self):
+        client = APIClient()
+        resp = client.post(
+            '/api/auth/login/', {'usuario': 'userA', 'password': 'secreta123'},
+            format='json', HTTP_HOST=self.host_a,
+        )
+        self.assertEqual(resp.status_code, 200)
+        return client
+
+    def test_access_de_A_no_autentica_en_el_host_de_B(self):
+        self._crear_empresa_b_con_id_colisionado()
+        client = self._login_en_a()
+
+        # La MISMA cookie de acceso, reenviada contra el Host de B, es rechazada.
+        atacante = APIClient()
+        atacante.cookies['access'] = client.cookies['access'].value
+        resp = atacante.get('/api/auth/me/', HTTP_HOST='b-claim.localhost')
+        self.assertEqual(resp.status_code, 401)
+
+    def test_refresh_de_A_no_emite_sesion_en_el_host_de_B(self):
+        self._crear_empresa_b_con_id_colisionado()
+        client = self._login_en_a()
+
+        # El refresh token de A, reenviado a /refresh/ por el Host de B, no debe
+        # emitir una sesion valida de B (mismo agujero, otra superficie).
+        atacante = APIClient()
+        atacante.cookies['refresh'] = client.cookies['refresh'].value
+        resp = atacante.post('/api/auth/refresh/', HTTP_HOST='b-claim.localhost')
+        self.assertEqual(resp.status_code, 401)
+
+
 class CookieCSRFTest(TenantTestCase):
     """CookieJWTAuthentication exige CSRF en metodos no seguros y lo omite en
     los seguros — se prueba la clase directamente porque esta feature aun no
@@ -148,7 +211,7 @@ class CookieCSRFTest(TenantTestCase):
 
     def _access_cookie(self):
         with tenant_context(self.tenant):
-            return str(RefreshToken.for_user(self.user).access_token)
+            return str(crear_refresh(self.user).access_token)
 
     def test_post_por_cookie_sin_csrf_es_rechazado(self):
         from rest_framework.exceptions import PermissionDenied

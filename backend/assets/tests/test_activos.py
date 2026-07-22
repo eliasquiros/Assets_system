@@ -10,9 +10,9 @@ from decimal import Decimal
 from django_tenants.test.cases import TenantTestCase
 from django_tenants.utils import get_public_schema_name, schema_context, tenant_context
 from rest_framework.test import APIClient
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.models import Usuario
+from accounts.tokens import crear_refresh
 from assets.models import (
     Activo, Categoria, Localizacion, Marca, Modelo, Movimiento, Origen, Proveedor,
 )
@@ -50,7 +50,7 @@ class ActivosApiTest(TenantTestCase):
     def setUp(self):
         self.client = APIClient()
         with tenant_context(self.tenant):
-            access = str(RefreshToken.for_user(self.user).access_token)
+            access = str(crear_refresh(self.user).access_token)
         self.client.cookies['access'] = access
 
     def test_listar_requiere_sesion(self):
@@ -146,7 +146,7 @@ class RegistrarActivoApiTest(TenantTestCase):
     def setUp(self):
         self.client = APIClient()
         with tenant_context(self.tenant):
-            access = str(RefreshToken.for_user(self.user).access_token)
+            access = str(crear_refresh(self.user).access_token)
         self.client.cookies['access'] = access
 
     def _payload(self, **over):
@@ -255,7 +255,7 @@ class AislamientoActivosTest(TenantTestCase):
 
         with tenant_context(empresa_b):
             user_b = Usuario.objects.create_user(username='soloB', password='secreta123')
-            access_b = str(RefreshToken.for_user(user_b).access_token)
+            access_b = str(crear_refresh(user_b).access_token)
 
         client = APIClient()
         client.cookies['access'] = access_b
