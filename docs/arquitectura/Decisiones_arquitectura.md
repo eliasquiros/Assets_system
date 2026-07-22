@@ -8,14 +8,18 @@ Este documento reúne, de forma numerada y trazable, las decisiones tomadas sobr
 
 ```mermaid
 flowchart TB
-    FE[Frontend React]
+    FE["Frontend React (host estatico, subdominio de empresa)"]
 
     subgraph Borde[Capa de borde]
         RL1[Limitacion general de solicitudes del proveedor de hospedaje]
+        CORS["CORS con credenciales, restringido a subdominios del dominio de marca"]
+        Claim[Verificacion del claim de empresa del token]
     end
 
-    FE -->|HTTPS, RS003| RL1
-    RL1 --> API[Django REST Framework]
+    FE -->|"HTTPS same-site, cookie httpOnly, RS003"| RL1
+    RL1 --> CORS
+    CORS --> Claim
+    Claim --> API["Django REST Framework (subdominio de API de la empresa)"]
 
     subgraph SchemaPublico[Schema publico de PostgreSQL]
         Companies[App companies: registro de empresas y su dominio]
@@ -49,10 +53,12 @@ flowchart TB
     SchemaEmpresa --> PG
     Disposals -->|enlace firmado temporal, RS005| Storage
 
-    Cron[Tarea programada del proveedor de hospedaje]
-    Comando[Comando de gestion de Django]
-    Cron -->|disparo diario| Comando
-    Comando -->|actualiza valor en libros actual| Assets
+    PgCron[pg_cron: agenda mensual en la base de datos]
+    PgNet[pg_net: peticion HTTP saliente]
+    Interno[Endpoint interno: token compartido]
+    PgCron -->|disparo el dia 1 de cada mes| PgNet
+    PgNet -->|POST con token| Interno
+    Interno -->|recorre empresas y actualiza valor en libros| Assets
 
     CacheDjango[Cache de Django respaldada en PostgreSQL]
     API -->|limitacion de intentos de inicio de sesion| CacheDjango
@@ -106,23 +112,23 @@ flowchart TB
 
 **Contexto.** Consultar el valor en libros de miles de activos en un listado (RF002.3, RP001) debe resolverse en menos de tres segundos. Recalcular el historial completo de cada activo en cada lectura de un listado sería innecesario cuando la mayoría de consultas piden simplemente el valor de hoy.
 
-**Decisión.** El modelo `Activo` guarda un campo de valor en libros actual y depreciación acumulada actual, concebido únicamente como atajo de lectura rápida. Ese campo se actualiza de inmediato ante cualquier evento relevante del historial (cambio de costo, cambio de vida útil, baja definitiva) y, adicionalmente, mediante un proceso diario que lo avanza con el simple paso del tiempo. Cualquier consulta a una fecha pasada ignora este campo y recalcula desde el historial según DA04.
+**Decisión.** El modelo `Activo` guarda un campo de valor en libros actual y depreciación acumulada actual, concebido únicamente como atajo de lectura rápida. Ese campo se actualiza de inmediato ante cualquier evento relevante del historial (cambio de costo, cambio de vida útil, baja definitiva) y, adicionalmente, mediante un proceso mensual que lo avanza con el simple paso del tiempo (ver DA06). Cualquier consulta a una fecha pasada ignora este campo y recalcula desde el historial según DA04.
 
 **Justificación.** El historial sigue siendo la única fuente de verdad, ya que este campo es enteramente derivable de él en cualquier momento; su único propósito es evitar recalcular en cada lectura algo que ya se conoce para la fecha de hoy.
 
 **Trazabilidad.** RF002.3, RP001, RN001.3.
 
-## DA06. Proceso diario mediante comando de Django y tarea programada externa, sin Celery
+## DA06. Recálculo mensual mediante núcleo en Python disparado por pg_cron, sin Celery
 
-**Contexto.** El campo definido en DA05 necesita actualizarse una vez al día. RP002 pide explícitamente evitar procesamiento en segundo plano para la generación de reportes, y el principio de diseño número cuatro del proyecto pide evitar sobreingeniería hasta que el volumen real lo justifique.
+**Contexto.** El campo definido en DA05 necesita avanzar con el paso del tiempo. El cálculo obligatoriamente vive en Python (DA04: una sola fórmula auditable, reutilizada por el registro y por el recálculo), mientras que el disparo periódico conviene resolverlo con la infraestructura que ya se tiene. RP002 pide evitar procesamiento en segundo plano para reportes, y el principio de diseño número cuatro del proyecto pide evitar sobreingeniería.
 
-**Decisión.** La actualización diaria se implementa como un comando de gestión de Django, disparado por una tarea programada externa provista por el proveedor de hospedaje o un servicio equivalente. No se introduce Celery ni un intermediario de mensajes como Redis para esta tarea.
+**Decisión.** El recálculo se ejecuta una vez al mes, el primer día del mes, con corte en esa misma fecha (coherente con el corte que usa el registro de un activo). Se implementa en tres piezas que comparten un único núcleo: una función que recorre cada empresa y recalcula sus activos reutilizando `calcular_depreciacion` (DA04), persistiendo solo los que cambiaron y sin escribir en el historial; un comando de gestión de Django que expone ese núcleo para correrlo a mano; y un endpoint interno HTTP que activa el mismo núcleo. El disparo lo hace la extensión `pg_cron` de la base de datos, que —como solo ejecuta SQL— llama al endpoint mediante la extensión `pg_net` (una petición HTTP mensual). El endpoint se protege con un token secreto compartido en un header, comparado en tiempo constante y fail-closed si no está configurado. No se introduce Celery ni un intermediario de mensajes como Redis.
 
-**Justificación.** La tarea es simple, idempotente, y no requiere reintentos complejos ni monitoreo especializado. Introducir Celery añadiría una pieza de infraestructura nueva que operar y pagar desde el primer día, para un beneficio que hoy no existe.
+**Justificación.** El cálculo mensual es simple, idempotente y no requiere reintentos complejos ni monitoreo especializado; Celery añadiría una pieza de infraestructura que operar y pagar desde el primer día, sin beneficio actual. Usar `pg_cron` aprovecha la base de datos gestionada que ya se tiene (Supabase) como agendador, sin depender de un servicio de cron externo; el cálculo, en cambio, permanece íntegramente en Python, evitando duplicar la lógica de negocio en SQL. Que el disparo (SQL) y el cálculo (Python) queden separados por una llamada HTTP mantiene una sola fuente de verdad para la fórmula. El backend, al ser un proceso siempre encendido, recalcula todas las empresas en una sola invocación sin límite de tiempo; el núcleo por-empresa permite trocear el trabajo si en el futuro el volumen de empresas lo justifica.
 
-**Alternativas descartadas.** Celery con Celery Beat, justificable únicamente si en el futuro aparecen tareas asíncronas más pesadas o que requieran reintentos automáticos.
+**Alternativas descartadas.** Reproducir la fórmula de depreciación en SQL dentro de `pg_cron` (duplicaría la lógica de negocio en dos lenguajes, contra la trazabilidad de DA04). Celery con Celery Beat, justificable solo si aparecen tareas asíncronas más pesadas o con reintentos automáticos. Un cron externo del proveedor de hospedaje llamando al comando de gestión (válido, pero prescinde del agendador que la base de datos ya ofrece).
 
-**Trazabilidad.** RP002, principio de diseño número cuatro del proyecto.
+**Trazabilidad.** RP002, DA04, DA05, principio de diseño número cuatro del proyecto.
 
 ## DA07. Sin caché dedicada para datos de negocio en el producto mínimo viable
 
@@ -229,3 +235,27 @@ flowchart TB
 **Alternativas descartadas.** Dominio único con un selector de empresa previo al login: evita el DNS wildcard, pero introduce un endpoint público nuevo (resolución de empresa) que hay que proteger contra enumeración de clientes, y no es el patrón de uso por defecto de `django-tenants`.
 
 **Trazabilidad.** DA01, DA02, DA03, RS-002, RF-006.1.
+
+## DA17. Frontend y backend como servicios separados bajo un mismo dominio de marca
+
+**Contexto.** DA16 define un subdominio por empresa, pero no especifica cómo se despliegan el frontend (build estático de React con Vite) y el backend (Django) ni cómo se relacionan sus dominios sin romper el modelo de cookies `httpOnly` de DA16 ni el aislamiento de RS-002. Un despliegue en el que el navegador vea al frontend y a la API como orígenes de dominios registrables distintos convierte la cookie de sesión en una cookie de terceros, que los navegadores bloquean de forma creciente.
+
+**Decisión.** El frontend y el backend se despliegan como servicios independientes, cada empresa servida por su subdominio bajo un único dominio registrable de marca: el frontend estático en `<empresa>.sistema.com` y la API en `<empresa>.api.sistema.com`, ambos bajo `sistema.com`. El frontend deriva la URL de su API en tiempo de ejecución a partir de su propio `Host` (insertando `api` como segundo segmento), sin fijar el dominio en el build, de modo que un único artefacto sirve a todas las empresas. Las cookies de autenticación se emiten *host-only* (sin atributo `Domain`), quedando adscritas al subdominio de API de cada empresa. El backend habilita CORS con credenciales, restringido por expresión regular a los subdominios del dominio de marca, gobernado por variable de entorno. En desarrollo el frontend usa una ruta relativa servida por el proxy de Vite, manteniendo un único origen y sin necesitar CORS.
+
+**Justificación.** Al compartir el dominio registrable, el frontend y la API son *same-site*: la cookie `httpOnly` con `SameSite=Lax` viaja del subdominio del frontend al de la API sin recurrir a `SameSite=None`, evitando la fragilidad de las cookies de terceros. Mantener las cookies *host-only* impide que la cookie de una empresa alcance el subdominio de API de otra, reforzando RS-002 en la capa del navegador. Derivar la URL en tiempo de ejecución evita compilar un artefacto por empresa. La lista blanca de CORS por expresión regular admite el alta de empresas nuevas sin cambios de código, igual que el comodín de CSRF de DA16.
+
+**Alternativas descartadas.** Frontend y backend en dominios registrables distintos (por ejemplo, los subdominios gratuitos de dos proveedores de hospedaje): obliga a cookies `SameSite=None` de terceros, frágiles ante las políticas de bloqueo de los navegadores. Un único servicio que sirva el estático y la API desde el mismo proceso: acopla ambos despliegues y renuncia a la distribución del frontend por red de entrega de contenido.
+
+**Trazabilidad.** DA01, DA16, RS-002, RS-003.
+
+## DA18. Sellado del token de sesión con la empresa emisora
+
+**Contexto.** DA03 y DA16 aíslan a los usuarios por schema y guardan el token de sesión en una cookie `httpOnly`. La clave de firma del token es única y compartida por todos los schemas, por lo que un token firmado para una empresa tiene firma válida en cualquier otra; si existiera un usuario con el mismo identificador en otra empresa, ese token podría autenticar como la persona equivocada. La topología de dominio compartido de DA17 hace concebible que una cookie mal configurada llegue al subdominio de otra empresa.
+
+**Decisión.** Cada token, tanto el de acceso como el de renovación, se sella con un dato que identifica el schema de la empresa que lo emitió. La autenticación por cookie y la renovación de sesión verifican, de forma restrictiva por defecto, que ese dato coincida con el schema fijado por el `Host` de la petición; un token sin ese dato, o con uno distinto al de la empresa activa, se rechaza.
+
+**Justificación.** La firma compartida por sí sola no ata un token a su empresa; el sello de empresa sí. Verificarlo en cada autenticación traslada el aislamiento entre empresas también a la capa de sesión, como defensa en profundidad que complementa el aislamiento por schema (DA01) y por origen de la cookie (DA16, DA17): aunque una cookie llegara al subdominio equivocado, el token no autenticaría.
+
+**Alternativas descartadas.** Una clave de firma distinta por empresa: obligaría a gestionar y rotar tantas claves como empresas, y a resolver la clave correcta antes de poder validar la firma, con mayor complejidad para el mismo efecto. Confiar únicamente en el aislamiento de la cookie por origen: deja el aislamiento a merced de un solo error de configuración del dominio de la cookie.
+
+**Trazabilidad.** RS-002, DA01, DA03, DA16, DA17.

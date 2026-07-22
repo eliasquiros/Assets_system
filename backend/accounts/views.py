@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import connection
 from django.middleware.csrf import get_token
 from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -12,6 +13,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .cookies import clear_auth_cookies, set_auth_cookies
 from .models import Usuario
 from .serializers import LoginSerializer
+from .tokens import crear_refresh, verificar_tenant
 
 CREDENCIALES_INVALIDAS = 'Usuario o contraseña incorrectos'
 
@@ -46,7 +48,7 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        refresh = RefreshToken.for_user(user)
+        refresh = crear_refresh(user)
         response = Response({'username': user.username, 'empresa': _empresa_nombre()})
         set_auth_cookies(response, refresh.access_token, refresh)
         get_token(request)   # marca a CsrfViewMiddleware para setear la cookie csrftoken
@@ -67,14 +69,18 @@ class RefreshView(APIView):
             return Response({'detail': 'Sesión no encontrada'}, status=status.HTTP_401_UNAUTHORIZED)
         try:
             old_refresh = RefreshToken(raw)
+            # El refresh solo sirve en la empresa que lo emitio: un token de otro
+            # schema (misma firma) se trata como sesion invalida, sin distinguirlo
+            # para no filtrar la existencia de la otra empresa.
+            verificar_tenant(old_refresh)
             user = Usuario.objects.get(pk=old_refresh['user_id'])
-        except (TokenError, Usuario.DoesNotExist):
+        except (TokenError, AuthenticationFailed, Usuario.DoesNotExist):
             response = Response({'detail': 'Sesión expirada'}, status=status.HTTP_401_UNAUTHORIZED)
             clear_auth_cookies(response)
             return response
 
         old_refresh.blacklist()
-        new_refresh = RefreshToken.for_user(user)
+        new_refresh = crear_refresh(user)
         response = Response({'detail': 'ok'})
         set_auth_cookies(response, new_refresh.access_token, new_refresh)
         return response

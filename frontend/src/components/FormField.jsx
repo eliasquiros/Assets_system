@@ -1,6 +1,6 @@
 import styles from './FormField.module.css'
 
-export function FormField({ label, error, required = true, children }) {
+export function FormField({ label, error, required = true, hint, children }) {
   return (
     <label className={styles.field}>
       <span className={styles.label}>
@@ -8,6 +8,7 @@ export function FormField({ label, error, required = true, children }) {
       </span>
       {children}
       {error && <span className={styles.error}>{error}</span>}
+      {!error && hint && <span className={styles.hint}>{hint}</span>}
     </label>
   )
 }

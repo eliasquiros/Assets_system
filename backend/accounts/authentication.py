@@ -3,6 +3,8 @@ from rest_framework import exceptions
 from rest_framework.authentication import CSRFCheck
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from .tokens import verificar_tenant
+
 
 def _enforce_csrf(request):
     """Aplica la proteccion CSRF de Django a las peticiones autenticadas por
@@ -24,6 +26,7 @@ class CookieJWTAuthentication(JWTAuthentication):
         if not raw_token:
             return None
         validated_token = self.get_validated_token(raw_token)
+        verificar_tenant(validated_token)
         user = self.get_user(validated_token)
         _enforce_csrf(request)
         return (user, validated_token)

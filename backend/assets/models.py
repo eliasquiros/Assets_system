@@ -1,10 +1,8 @@
 """Modelos de activos y catalogos, dentro del schema de cada empresa (DA09).
 
-Mapean las tablas documentadas en db/schema.sql. Este pase cubre solo la
-lectura (listar/detalle), por lo que se modelan los catalogos que el listado y
-el detalle muestran (localizacion -> area, categoria -> tipo, proveedor) y los
-campos NOT NULL del activo. Los catalogos opcionales restantes (marca, modelo,
-origen) y sus FKs se agregaran cuando se implemente crear/editar.
+Mapean las tablas documentadas en db/schema.sql. Cubren el listado/detalle y el
+registro de activos (RF-001): todos los catalogos (localizacion, categoria,
+proveedor, marca, modelo, origen) y las FKs correspondientes en `activo`.
 """
 from django.conf import settings
 from django.db import models
@@ -30,9 +28,14 @@ class Localizacion(models.Model):
 
 
 class Categoria(models.Model):
-    """Tipo/categoria de activo (catalogo_categorias). RF-001.1, RF-003.1."""
+    """Tipo/categoria de activo (catalogo_categorias). RF-001.1, RF-003.1.
+
+    `prefijo` es el codigo corto (ej. SOF, VEH) con el que se arma el numero de
+    activo al registrar: numero = PREFIJO-#### correlativo dentro de la categoria.
+    """
     nombre = models.CharField(max_length=150)
     descripcion = models.TextField(null=True, blank=True)
+    prefijo = models.CharField(max_length=8, blank=True, default='')
     activa = models.BooleanField(default=True)
 
     class Meta:
@@ -60,6 +63,62 @@ class Proveedor(models.Model):
         constraints = [
             models.UniqueConstraint(
                 Lower(Trim('nombre')), name='uq_proveedor_nombre_norm',
+            ),
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+
+class Marca(models.Model):
+    """Marca del activo (catalogo_marcas). RF-001.1. 1:N hacia Modelo."""
+    nombre = models.CharField(max_length=150)
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'catalogo_marcas'
+        constraints = [
+            models.UniqueConstraint(
+                Lower(Trim('nombre')), name='uq_marca_nombre_norm',
+            ),
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+
+class Modelo(models.Model):
+    """Modelo, asociado a una unica marca (catalogo_modelos, 1:N marca->modelo).
+
+    El nombre es unico dentro de la marca, no globalmente (dos marcas pueden
+    tener un modelo homonimo)."""
+    nombre = models.CharField(max_length=150)
+    marca = models.ForeignKey(Marca, on_delete=models.PROTECT, related_name='modelos')
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'catalogo_modelos'
+        constraints = [
+            models.UniqueConstraint(
+                'marca', Lower(Trim('nombre')), name='uq_modelo_marca_nombre_norm',
+            ),
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+
+class Origen(models.Model):
+    """Origen del activo (catalogo_origenes). RF-001.1. Catalogo fijo: se siembran
+    'Dentro de inversion' y 'Fuera de inversion'; no se crean desde la UI."""
+    nombre = models.CharField(max_length=150)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'catalogo_origenes'
+        constraints = [
+            models.UniqueConstraint(
+                Lower(Trim('nombre')), name='uq_origen_nombre_norm',
             ),
         ]
 
@@ -100,6 +159,18 @@ class Activo(models.Model):
     )
     proveedor = models.ForeignKey(
         Proveedor, on_delete=models.PROTECT, related_name='activos',
+        null=True, blank=True,
+    )
+    marca = models.ForeignKey(
+        Marca, on_delete=models.PROTECT, related_name='activos',
+        null=True, blank=True,
+    )
+    modelo = models.ForeignKey(
+        Modelo, on_delete=models.PROTECT, related_name='activos',
+        null=True, blank=True,
+    )
+    origen = models.ForeignKey(
+        Origen, on_delete=models.PROTECT, related_name='activos',
         null=True, blank=True,
     )
     fecha_creacion = models.DateTimeField(auto_now_add=True)

@@ -10,10 +10,12 @@ from decimal import Decimal
 from django_tenants.test.cases import TenantTestCase
 from django_tenants.utils import get_public_schema_name, schema_context, tenant_context
 from rest_framework.test import APIClient
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.models import Usuario
-from assets.models import Activo, Categoria, Localizacion, Movimiento
+from accounts.tokens import crear_refresh
+from assets.models import (
+    Activo, Categoria, Localizacion, Marca, Modelo, Movimiento, Origen, Proveedor,
+)
 from companies.models import Domain, Empresa
 
 
@@ -48,7 +50,7 @@ class ActivosApiTest(TenantTestCase):
     def setUp(self):
         self.client = APIClient()
         with tenant_context(self.tenant):
-            access = str(RefreshToken.for_user(self.user).access_token)
+            access = str(crear_refresh(self.user).access_token)
         self.client.cookies['access'] = access
 
     def test_listar_requiere_sesion(self):
@@ -124,6 +126,119 @@ class ActivosApiTest(TenantTestCase):
         self.assertEqual(resp.status_code, 401)
 
 
+class RegistrarActivoApiTest(TenantTestCase):
+    """Registro de activos (RF-001): creacion + ALTA, numeracion y alta de catalogo."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with tenant_context(cls.tenant):
+            cls.user = Usuario.objects.create_user(username='reg', password='secreta123')
+            cls.cat = Categoria.objects.create(nombre='Software', prefijo='SOF')
+            cls.loc = Localizacion.objects.create(nombre='Centro de datos')
+            cls.prov = Proveedor.objects.create(nombre='Proveedor X')
+            cls.marca = Marca.objects.create(nombre='Marca X')
+            cls.marca_otra = Marca.objects.create(nombre='Marca Y')
+            cls.modelo = Modelo.objects.create(nombre='Modelo 1', marca=cls.marca)
+            cls.origen = Origen.objects.create(nombre='Dentro de inversión')
+        cls.host = cls.tenant.get_primary_domain().domain
+
+    def setUp(self):
+        self.client = APIClient()
+        with tenant_context(self.tenant):
+            access = str(crear_refresh(self.user).access_token)
+        self.client.cookies['access'] = access
+
+    def _payload(self, **over):
+        data = dict(
+            num='SOF-0001', nombre='Sistema contable', costo='500000',
+            fechaAdq='2024-01-10', fechaUso='2024-01-15', vidaUtil=5,
+            serie='SN-1', factura='F-1',
+            categoria=self.cat.id, localizacion=self.loc.id, proveedor=self.prov.id,
+            marca=self.marca.id, modelo=self.modelo.id, origen=self.origen.id,
+        )
+        data.update(over)
+        return data
+
+    def _post(self, url, payload):
+        return self.client.post(url, payload, format='json', HTTP_HOST=self.host)
+
+    def test_crear_activo_crea_activo_y_su_alta(self):
+        resp = self._post('/api/activos/crear/', self._payload())
+        self.assertEqual(resp.status_code, 201)
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='SOF-0001')
+            movs = list(activo.movimientos.all())
+            self.assertEqual(len(movs), 1)
+            self.assertEqual(movs[0].tipo_evento, Movimiento.ALTA)
+            self.assertEqual(movs[0].usuario_id, self.user.id)
+
+    def test_libros_dep_y_estado_no_se_reciben_del_cliente_se_calculan(self):
+        # El cliente no puede fijar libros/dep/estado; si los envia, se ignoran.
+        resp = self._post('/api/activos/crear/', self._payload(
+            fechaAdq='2020-01-01', fechaUso='2020-01-01',
+            estado='TOTALMENTE_DEPRECIADO', libros='999999', dep='999999',
+        ))
+        self.assertEqual(resp.status_code, 201)
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='SOF-0001')
+            # vida util 5 anios desde 2020-01-01: ya paso de sobra -> totalmente depreciado.
+            self.assertEqual(activo.estado_depreciacion, 'TOTALMENTE_DEPRECIADO')
+            self.assertEqual(activo.depreciacion_acumulada_actual, activo.costo_original)
+            self.assertEqual(activo.valor_libros_actual, Decimal('0.00'))
+
+    def test_siguiente_numero_es_correlativo_por_categoria(self):
+        r1 = self.client.get(f'/api/activos/siguiente-numero/?categoria={self.cat.id}', HTTP_HOST=self.host)
+        self.assertEqual(r1.data['numero'], 'SOF-0001')
+        self._post('/api/activos/crear/', self._payload(num='SOF-0001'))
+        r2 = self.client.get(f'/api/activos/siguiente-numero/?categoria={self.cat.id}', HTTP_HOST=self.host)
+        self.assertEqual(r2.data['numero'], 'SOF-0002')
+
+    def test_numero_duplicado_da_400(self):
+        self._post('/api/activos/crear/', self._payload())
+        resp = self._post('/api/activos/crear/', self._payload())
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('num', resp.data)
+
+    def test_marca_modelo_y_serie_son_opcionales_y_quedan_null(self):
+        payload = self._payload()
+        del payload['marca']
+        del payload['modelo']
+        del payload['serie']
+        resp = self._post('/api/activos/crear/', payload)
+        self.assertEqual(resp.status_code, 201)
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='SOF-0001')
+            self.assertIsNone(activo.marca_id)
+            self.assertIsNone(activo.modelo_id)
+            self.assertIsNone(activo.serie)
+
+    def test_serie_en_blanco_se_guarda_como_null(self):
+        resp = self._post('/api/activos/crear/', self._payload(serie='  '))
+        self.assertEqual(resp.status_code, 201)
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='SOF-0001')
+            self.assertIsNone(activo.serie)
+
+    def test_modelo_debe_pertenecer_a_la_marca(self):
+        resp = self._post('/api/activos/crear/', self._payload(marca=self.marca_otra.id))
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('modelo', resp.data)
+
+    def test_fecha_inicio_anterior_a_adquisicion_da_400(self):
+        resp = self._post('/api/activos/crear/', self._payload(fechaUso='2024-01-01'))
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('fechaUso', resp.data)
+
+    def test_alta_de_catalogo_categoria_con_prefijo_y_modelo_por_marca(self):
+        r = self._post('/api/catalogos/categorias/', {'nombre': 'Redes', 'prefijo': 'RED'})
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data['prefijo'], 'RED')
+        r2 = self._post('/api/catalogos/modelos/', {'nombre': 'Modelo nuevo', 'marca': self.marca.id})
+        self.assertEqual(r2.status_code, 201)
+        self.assertEqual(r2.data['marca'], self.marca.id)
+
+
 class AislamientoActivosTest(TenantTestCase):
     """RS-002: los activos de una empresa no se ven desde el subdominio de otra."""
 
@@ -140,7 +255,7 @@ class AislamientoActivosTest(TenantTestCase):
 
         with tenant_context(empresa_b):
             user_b = Usuario.objects.create_user(username='soloB', password='secreta123')
-            access_b = str(RefreshToken.for_user(user_b).access_token)
+            access_b = str(crear_refresh(user_b).access_token)
 
         client = APIClient()
         client.cookies['access'] = access_b

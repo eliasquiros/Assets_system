@@ -2,3 +2,4 @@
 .label { font-size: 12px; font-weight: 600; color: var(--color-neutral-text); }
 .required { color: #C0504D; }
 .error { font-size: 11px; color: #C0504D; font-weight: 500; }
+.hint { font-size: 11px; color: var(--color-muted-2); }

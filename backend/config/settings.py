@@ -16,6 +16,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from config.env import resolver_secret_key
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -25,14 +27,11 @@ load_dotenv(BASE_DIR / '.env')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    'DJANGO_SECRET_KEY',
-    'django-insecure-f+if@u3vpin#lef!q^a7m&7=i&iv&y1*_5p$doo#1ttsq&g#l!',
-)
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+
+# SECURITY WARNING: en produccion DJANGO_SECRET_KEY es obligatorio (fail-closed).
+SECRET_KEY = resolver_secret_key(os.environ, DEBUG)
 
 # DA16: cada empresa se sirve desde su propio subdominio (ej. acme.localhost
 # en desarrollo). Se acepta el dominio base y cualquier subdominio suyo.
@@ -47,6 +46,7 @@ ALLOWED_HOSTS = [
 
 SHARED_APPS = [
     'django_tenants',            # obligatorio primero
+    'corsheaders',
     'companies',                 # registro de empresas (schema publico)
     'django.contrib.contenttypes',
     'django.contrib.staticfiles',
@@ -71,6 +71,7 @@ DATABASE_ROUTERS = ('django_tenants.routers.TenantSyncRouter',)
 
 MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware',   # fija el schema por Host, primero
+    'corsheaders.middleware.CorsMiddleware',                 # antes de CommonMiddleware
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -112,6 +113,13 @@ DATABASES = {
         'PORT': os.environ.get('DB_PORT', '5430'),
     }
 }
+
+# Conexiones persistentes en hosts con proceso vivo (Render). Con el pooler de
+# Supabase, fijar DB_SSLMODE=require y apuntar DB_HOST/DB_PORT al pooler.
+DATABASES['default']['CONN_MAX_AGE'] = int(os.environ.get('DB_CONN_MAX_AGE', '0'))
+_db_sslmode = os.environ.get('DB_SSLMODE')
+if _db_sslmode:
+    DATABASES['default']['OPTIONS'] = {'sslmode': _db_sslmode}
 
 
 # Password validation
@@ -199,9 +207,39 @@ CSRF_TRUSTED_ORIGINS = [
     if o.strip()
 ]
 
+# CORS: en la Opcion B el frontend vive en un subdominio distinto al backend
+# (mismo dominio padre). Se permite por regex de subdominios y con credenciales
+# para que la cookie httpOnly viaje. Vacio en dev (el proxy de Vite hace mismo
+# origen, sin CORS). En prod, ej: ^https://[a-z0-9-]+\.sistema\.com$
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r.strip()
+    for r in os.environ.get('DJANGO_CORS_ALLOWED_ORIGIN_REGEXES', '').split(',')
+    if r.strip()
+]
+CORS_ALLOW_CREDENTIALS = True
+
+# Token compartido que protege el endpoint interno de tareas (recalculo mensual
+# de depreciacion disparado por pg_cron via pg_net). Fail-closed: si esta vacio,
+# el endpoint responde 503 y no ejecuta nada.
+INTERNAL_TASK_TOKEN = os.environ.get('DJANGO_INTERNAL_TASK_TOKEN', '')
+
 # Cache local para el throttle del login (DA08). En produccion se cambia el backend (DA07).
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     }
 }
+
+
+# --- Endurecimiento de produccion (solo cuando DEBUG=False) ---
+# Render/hosts PaaS terminan TLS en su proxy y reenvian el esquema en esta
+# cabecera; sin esto Django creeria que la request es http y romperia el redirect.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 año
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
