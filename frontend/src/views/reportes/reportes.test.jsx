@@ -35,28 +35,18 @@ describe('AuditoriaCard', () => {
 })
 
 describe('FinancieroCard', () => {
-  it('generates the report for the selected cutoff month', async () => {
-    const mutate = vi.fn()
-    useToast.mockReturnValue({ showToast: vi.fn() })
-    useGenerarFinanciero.mockReturnValue({ mutate, isPending: false, isError: false, isSuccess: false })
+  it('descarga el reporte del mes de corte seleccionado', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(undefined)
+    const showToast = vi.fn()
+    useToast.mockReturnValue({ showToast })
+    useGenerarFinanciero.mockReturnValue({ mutateAsync, isPending: false, isError: false })
 
     render(<FinancieroCard />)
-    await userEvent.click(screen.getByText('Generar'))
+    await userEvent.selectOptions(screen.getByLabelText('Mes de corte'), '2026-03')
+    await userEvent.click(screen.getByText('Generar y descargar'))
 
-    expect(mutate).toHaveBeenCalledWith('2026-06')
-  })
-
-  it('shows the totals row once the report is generated', () => {
-    useToast.mockReturnValue({ showToast: vi.fn() })
-    useGenerarFinanciero.mockReturnValue({
-      mutate: vi.fn(), isPending: false, isError: false, isSuccess: true,
-      data: { corte: '2026-06', activos: [{ num: 'AF-0001', nombre: 'Laptop Dell', libros: 255000, dep: 595000 }], totalLibros: 255000, totalDep: 595000 },
-    })
-
-    render(<FinancieroCard />)
-    expect(screen.getByText('TOTAL VIGENTES (1)')).toBeInTheDocument()
-    // libros and totalLibros are equal in this fixture, so the formatted amount appears twice (row + total).
-    expect(screen.getAllByText('₡ 255.000')).toHaveLength(2)
+    expect(mutateAsync).toHaveBeenCalledWith('2026-03')
+    expect(showToast).toHaveBeenCalledWith('Reporte financiero — marzo 2026 descargado', 'success')
   })
 })
 

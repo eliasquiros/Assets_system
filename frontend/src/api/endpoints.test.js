@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiFetch, descargarArchivo } from './client'
 import { crearActivo, editarActivo, listarActivos, obtenerActivo, obtenerMovimientos } from './activos'
 import { listarBajas, registrarBaja, revertirBaja } from './bajas'
-import { descargarReporteAuditoria, generarReporteFinanciero } from './reportes'
+import { descargarReporteAuditoria, descargarReporteFinanciero } from './reportes'
 import { login } from './auth'
 
 vi.mock('./client')
@@ -78,10 +78,11 @@ describe('api/reportes', () => {
       '/reportes/auditoria/?anio=2024', 'reporte_auditoria_2024.xlsx')
   })
 
-  it('generarReporteFinanciero fetches /reportes/financiero/ with the cutoff month', async () => {
-    apiFetch.mockResolvedValue({ corte: '2026-06', activos: [], totalLibros: 0, totalDep: 0 })
-    await generarReporteFinanciero('2026-06', { token: 't1' })
-    expect(apiFetch).toHaveBeenCalledWith('/reportes/financiero/?corte=2026-06', { token: 't1' })
+  it('descargarReporteFinanciero descarga el xlsx del mes de corte', async () => {
+    descargarArchivo.mockResolvedValue(undefined)
+    await descargarReporteFinanciero('2026-06')
+    expect(descargarArchivo).toHaveBeenCalledWith(
+      '/reportes/financiero/?corte=2026-06', 'reporte_financiero_2026-06.xlsx')
   })
 })
 
