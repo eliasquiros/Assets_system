@@ -11,7 +11,8 @@ from datetime import date
 
 from django.http import HttpResponse
 from openpyxl import Workbook
-from openpyxl.styles import Font
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 
@@ -31,6 +32,19 @@ COLUMNAS = [
 ]
 # Caracteres prohibidos por Excel en el nombre de una hoja.
 _TITULO_INVALIDO = re.compile(r'[\[\]:*?/\\]')
+
+# Formatos y ancho por columna (indice 1-based, en el orden de COLUMNAS).
+# 'fecha' -> DD/MM/YYYY; 'moneda' -> 2 decimales con separador de miles.
+_FMT_FECHA = 'DD/MM/YYYY'
+_FMT_MONEDA = '#,##0.00'
+FORMATOS_COLUMNA = {3: _FMT_MONEDA, 4: _FMT_FECHA, 5: _FMT_FECHA,
+                    8: _FMT_MONEDA, 9: _FMT_MONEDA}
+# Ancho minimo/maximo (en caracteres) al autoajustar segun el contenido.
+_ANCHO_MIN = 10
+_ANCHO_MAX = 35
+_ENCABEZADO_FILL = PatternFill('solid', fgColor='1F4E78')  # azul corporativo
+_ENCABEZADO_FONT = Font(bold=True, color='FFFFFF')
+_CENTRADO = Alignment(horizontal='center', vertical='center')
 
 
 def _nombre_hoja(nombre, usados):
@@ -94,7 +108,6 @@ def construir_libro(anio):
 
     wb = Workbook()
     wb.remove(wb.active)  # quita la hoja vacia por defecto
-    negrita = Font(bold=True)
     usados = set()
 
     for categoria, items in grupos.items():
@@ -104,14 +117,49 @@ def construir_libro(anio):
         ws.append([])  # fila 2 en blanco
         ws.append(COLUMNAS)  # fila 3: encabezados
         for celda in ws[ws.max_row]:
-            celda.font = negrita
+            celda.font = _ENCABEZADO_FONT
+            celda.fill = _ENCABEZADO_FILL
+            celda.alignment = _CENTRADO
         for activo in items:
             ws.append(_fila(activo, corte))
+        _dar_formato(ws)
 
     if not wb.worksheets:
         wb.create_sheet(title='Sin activos')
 
     return wb
+
+
+def _ancho_visible(celda):
+    """Longitud aproximada de como se ve la celda ya formateada (no el valor crudo)."""
+    valor = celda.value
+    if valor is None:
+        return 0
+    if celda.number_format == _FMT_FECHA:
+        return len('DD/MM/YYYY')
+    if celda.number_format == _FMT_MONEDA:
+        return len(f'{valor:,.2f}')
+    return len(str(valor))
+
+
+def _dar_formato(ws):
+    """Formato de fechas/moneda, ancho de columna autoajustado al contenido
+    (con tope minimo/maximo) y encabezados congelados."""
+    # El bloque de datos empieza en la fila 4 (1=titulo, 2=blanco, 3=headers).
+    for fila in ws.iter_rows(min_row=4, max_col=len(COLUMNAS)):
+        for celda in fila:
+            fmt = FORMATOS_COLUMNA.get(celda.column)
+            if fmt:
+                celda.number_format = fmt
+
+    for i, encabezado in enumerate(COLUMNAS, start=1):
+        letra = get_column_letter(i)
+        max_dato = max(
+            (_ancho_visible(c) for c in ws[letra][3:]), default=0,
+        )
+        ancho = max(len(encabezado), max_dato) + 2  # margen
+        ws.column_dimensions[letra].width = min(max(ancho, _ANCHO_MIN), _ANCHO_MAX)
+    ws.freeze_panes = 'A4'  # mantiene titulo + encabezados visibles al scrollear
 
 
 class ReporteAuditoriaView(APIView):
