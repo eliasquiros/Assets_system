@@ -115,19 +115,19 @@ describe('useRevertirBaja', () => {
 })
 
 describe('useGenerarAuditoria', () => {
-  it('calls generarReporteAuditoria', async () => {
-    reportesApi.generarReporteAuditoria.mockResolvedValue({ activos: [], total: 0 })
+  it('calls descargarReporteAuditoria with the chosen year', async () => {
+    reportesApi.descargarReporteAuditoria.mockResolvedValue(undefined)
     const { result } = renderHook(() => useGenerarAuditoria(), { wrapper })
-    await result.current.mutateAsync()
-    expect(reportesApi.generarReporteAuditoria).toHaveBeenCalledWith({})
+    await result.current.mutateAsync(2024)
+    expect(reportesApi.descargarReporteAuditoria).toHaveBeenCalledWith(2024)
   })
 })
 
 describe('useGenerarFinanciero', () => {
-  it('calls generarReporteFinanciero with the chosen cutoff month', async () => {
-    reportesApi.generarReporteFinanciero.mockResolvedValue({ corte: '2026-06', activos: [], totalLibros: 0, totalDep: 0 })
+  it('calls descargarReporteFinanciero with the chosen cutoff month', async () => {
+    reportesApi.descargarReporteFinanciero.mockResolvedValue(undefined)
     const { result } = renderHook(() => useGenerarFinanciero(), { wrapper })
     await result.current.mutateAsync('2026-06')
-    expect(reportesApi.generarReporteFinanciero).toHaveBeenCalledWith('2026-06', {})
+    expect(reportesApi.descargarReporteFinanciero).toHaveBeenCalledWith('2026-06')
   })
 })

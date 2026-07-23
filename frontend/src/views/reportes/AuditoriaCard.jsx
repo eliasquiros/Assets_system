@@ -1,37 +1,42 @@
+import { useState } from 'react'
 import { useGenerarAuditoria } from '../../hooks/useReportes'
 import { useToast } from '../../context/ToastContext'
 import { Button } from '../../components/Button'
 import { Spinner } from '../../components/Spinner'
-import { money } from '../../lib/money'
 import styles from './ReporteCard.module.css'
 
+// Anios seleccionables: el actual y los 5 anteriores. El corte de cada reporte
+// es el 30 de septiembre del anio elegido.
+const ANIO_ACTUAL = new Date().getFullYear()
+const ANIOS = Array.from({ length: 6 }, (_, i) => ANIO_ACTUAL - i)
+
 export function AuditoriaCard() {
+  const [anio, setAnio] = useState(ANIO_ACTUAL)
   const auditoria = useGenerarAuditoria()
   const { showToast } = useToast()
+
+  async function generar() {
+    try {
+      await auditoria.mutateAsync(anio)
+      showToast(`Reporte de auditoría ${anio} descargado`, 'success')
+    } catch (err) {
+      showToast(err.message || 'No se pudo generar el reporte.', 'error')
+    }
+  }
 
   return (
     <div className={styles.card}>
       <h3>Reporte de auditoría</h3>
-      <p>Listado completo de activos con su historial de movimientos.</p>
-      <Button onClick={() => auditoria.mutate()} disabled={auditoria.isPending}>
-        {auditoria.isPending ? <Spinner size={14} /> : 'Generar y exportar'}
-      </Button>
+      <p>Activos con dep. acumulada, valor en libros y estado al 30 de septiembre del año elegido, agrupados por categoría (una hoja por categoría).</p>
+      <div className={styles.cutoffRow}>
+        <select value={anio} onChange={(e) => setAnio(Number(e.target.value))} aria-label="Año del reporte">
+          {ANIOS.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <Button onClick={generar} disabled={auditoria.isPending}>
+          {auditoria.isPending ? <Spinner size={14} /> : 'Generar y descargar'}
+        </Button>
+      </div>
       {auditoria.isError && <p className={styles.error}>No se pudo generar el reporte.</p>}
-      {auditoria.isSuccess && (
-        <div className={styles.result}>
-          <p>Reporte generado — {auditoria.data.activos.length} activos incluidos</p>
-          <table>
-            <tbody>
-              {auditoria.data.activos.slice(0, 5).map((a) => (
-                <tr key={a.num}><td>{a.num}</td><td>{a.nombre}</td><td>{money(a.libros)}</td></tr>
-              ))}
-            </tbody>
-          </table>
-          <Button variant="secondary" onClick={() => showToast('Exportado: reporte_auditoria.xlsx', 'success')}>
-            ↓ Exportar reporte_auditoria.xlsx
-          </Button>
-        </div>
-      )}
     </div>
   )
 }

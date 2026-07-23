@@ -3,10 +3,10 @@
 // forwards, with no logic of its own. apiFetch's own behavior (headers,
 // error normalization) is covered separately in client.test.js.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { apiFetch } from './client'
+import { apiFetch, descargarArchivo } from './client'
 import { crearActivo, editarActivo, listarActivos, obtenerActivo, obtenerMovimientos } from './activos'
 import { listarBajas, registrarBaja, revertirBaja } from './bajas'
-import { generarReporteAuditoria, generarReporteFinanciero } from './reportes'
+import { descargarReporteAuditoria, descargarReporteFinanciero } from './reportes'
 import { login } from './auth'
 
 vi.mock('./client')
@@ -71,16 +71,18 @@ describe('api/bajas', () => {
 })
 
 describe('api/reportes', () => {
-  it('generarReporteAuditoria fetches /reportes/auditoria/', async () => {
-    apiFetch.mockResolvedValue({ activos: [], total: 0 })
-    await generarReporteAuditoria({ token: 't1' })
-    expect(apiFetch).toHaveBeenCalledWith('/reportes/auditoria/', { token: 't1' })
+  it('descargarReporteAuditoria descarga el xlsx del año', async () => {
+    descargarArchivo.mockResolvedValue(undefined)
+    await descargarReporteAuditoria(2024)
+    expect(descargarArchivo).toHaveBeenCalledWith(
+      '/reportes/auditoria/?anio=2024', 'reporte_auditoria_2024.xlsx')
   })
 
-  it('generarReporteFinanciero fetches /reportes/financiero/ with the cutoff month', async () => {
-    apiFetch.mockResolvedValue({ corte: '2026-06', activos: [], totalLibros: 0, totalDep: 0 })
-    await generarReporteFinanciero('2026-06', { token: 't1' })
-    expect(apiFetch).toHaveBeenCalledWith('/reportes/financiero/?corte=2026-06', { token: 't1' })
+  it('descargarReporteFinanciero descarga el xlsx del mes de corte', async () => {
+    descargarArchivo.mockResolvedValue(undefined)
+    await descargarReporteFinanciero('2026-06')
+    expect(descargarArchivo).toHaveBeenCalledWith(
+      '/reportes/financiero/?corte=2026-06', 'reporte_financiero_2026-06.xlsx')
   })
 })
 

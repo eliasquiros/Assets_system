@@ -1,13 +1,10 @@
 import { useMutation } from '@tanstack/react-query'
-import { generarReporteAuditoria, generarReporteFinanciero } from '../api/reportes'
-import { useAuth } from '../context/AuthContext'
+import { descargarReporteAuditoria, descargarReporteFinanciero } from '../api/reportes'
 
 export function useGenerarAuditoria() {
-  const { token } = useAuth()
-  return useMutation({ mutationFn: () => generarReporteAuditoria({ token }) })
+  return useMutation({ mutationFn: (anio) => descargarReporteAuditoria(anio) })
 }
 
 export function useGenerarFinanciero() {
-  const { token } = useAuth()
-  return useMutation({ mutationFn: (corte) => generarReporteFinanciero(corte, { token }) })
+  return useMutation({ mutationFn: (corte) => descargarReporteFinanciero(corte) })
 }
