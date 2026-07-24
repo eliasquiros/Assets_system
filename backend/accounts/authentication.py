@@ -3,7 +3,7 @@ from rest_framework import exceptions
 from rest_framework.authentication import CSRFCheck
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from .tokens import verificar_tenant
+from .tokens import activar_tenant_desde_token
 
 
 def _enforce_csrf(request):
@@ -26,7 +26,9 @@ class CookieJWTAuthentication(JWTAuthentication):
         if not raw_token:
             return None
         validated_token = self.get_validated_token(raw_token)
-        verificar_tenant(validated_token)
+        # La empresa sale del claim FIRMADO del token, no del Host: activa aqui
+        # el schema correcto antes de buscar al usuario (RS-002).
+        activar_tenant_desde_token(validated_token)
         user = self.get_user(validated_token)
         _enforce_csrf(request)
         return (user, validated_token)
