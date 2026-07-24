@@ -14,9 +14,9 @@ function moneyWrap(n) {
   return money(n).replace(/\./g, '.​')
 }
 
-function Dato({ label, children }) {
+function Dato({ label, children, full = false }) {
   return (
-    <div className={styles.dato}>
+    <div className={`${styles.dato} ${full ? styles.datoFull : ''}`}>
       <div className={styles.label}>{label}</div>
       <div className={styles.value}>{children}</div>
     </div>
@@ -83,7 +83,7 @@ export function ActivoDetailDrawer({ onClose }) {
                   <Dato label="Factura"><span className="mono">{activo.factura || '—'}</span></Dato>
                   <Dato label="F. adquisición"><span className="mono">{fmtDate(activo.fechaAdq)}</span></Dato>
                   <Dato label="Inicio de uso"><span className="mono">{fmtDate(activo.fechaUso)}</span></Dato>
-                  <Dato label="Registrado en sistema"><span className="mono">{fmtDate(activo.fechaRegistro)}</span></Dato>
+                  <Dato label="Detalle adicional" full>{activo.detalle || '—'}</Dato>
                 </div>
               </section>
 
