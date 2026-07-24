@@ -1,4 +1,11 @@
 asgiref==3.11.1
 Django==6.0.7
+psycopg2-binary==2.9.12
+python-dotenv==1.2.2
 sqlparse==0.5.5
 tzdata==2026.2
+django-tenants==3.10.2
+djangorestframework==3.16.1
+djangorestframework-simplejwt==5.5.1
+django-cors-headers==4.9.0
+openpyxl==3.1.5

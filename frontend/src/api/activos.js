@@ -14,7 +14,7 @@ export function obtenerActivo(num, { token } = {}) {
 }
 
 export function crearActivo(datos, { token } = {}) {
-  return apiFetch('/activos/', { method: 'POST', body: datos, token })
+  return apiFetch('/activos/crear/', { method: 'POST', body: datos, token })
 }
 
 export function editarActivo(num, datos, { token } = {}) {

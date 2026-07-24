@@ -3,10 +3,10 @@
 // forwards, with no logic of its own. apiFetch's own behavior (headers,
 // error normalization) is covered separately in client.test.js.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { apiFetch } from './client'
+import { apiFetch, descargarArchivo } from './client'
 import { crearActivo, editarActivo, listarActivos, obtenerActivo, obtenerMovimientos } from './activos'
 import { listarBajas, registrarBaja, revertirBaja } from './bajas'
-import { generarReporteAuditoria, generarReporteFinanciero } from './reportes'
+import { descargarReporteAuditoria, descargarReporteFinanciero } from './reportes'
 import { login } from './auth'
 
 vi.mock('./client')
@@ -28,10 +28,10 @@ describe('api/activos', () => {
     expect(apiFetch).toHaveBeenCalledWith('/activos/', { token: 't1' })
   })
 
-  it('crearActivo POSTs to /activos/', async () => {
+  it('crearActivo POSTs to /activos/crear/', async () => {
     apiFetch.mockResolvedValue({ num: 'AF-0001' })
     await crearActivo({ num: 'AF-0001' }, { token: 't1' })
-    expect(apiFetch).toHaveBeenCalledWith('/activos/', { method: 'POST', body: { num: 'AF-0001' }, token: 't1' })
+    expect(apiFetch).toHaveBeenCalledWith('/activos/crear/', { method: 'POST', body: { num: 'AF-0001' }, token: 't1' })
   })
 
   it('editarActivo PATCHes /activos/{num}/', async () => {
@@ -56,11 +56,21 @@ describe('api/bajas', () => {
     expect(apiFetch).toHaveBeenCalledWith('/bajas/', { token: 't1' })
   })
 
-  it('registrarBaja POSTs the form data', async () => {
-    const datos = { activoNum: 'AF-0001', motivo: 'Venta', desc: 'detalle' }
+  it('registrarBaja POSTs the form data as multipart including the file', async () => {
+    const archivo = new File(['x'], 'comprobante.pdf', { type: 'application/pdf' })
+    const datos = { activoNum: 'AF-0001', motivo: 'Venta', desc: 'detalle', fechaEfectiva: '2026-07-09', archivo }
     apiFetch.mockResolvedValue({ id: 'BJ-2026-019' })
     await registrarBaja(datos, { token: 't1' })
-    expect(apiFetch).toHaveBeenCalledWith('/bajas/', { method: 'POST', body: datos, token: 't1' })
+    const [path, opts] = apiFetch.mock.calls[0]
+    expect(path).toBe('/bajas/')
+    expect(opts.method).toBe('POST')
+    expect(opts.token).toBe('t1')
+    expect(opts.body).toBeInstanceOf(FormData)
+    expect(opts.body.get('activoNum')).toBe('AF-0001')
+    expect(opts.body.get('motivo')).toBe('Venta')
+    expect(opts.body.get('desc')).toBe('detalle')
+    expect(opts.body.get('fechaEfectiva')).toBe('2026-07-09')
+    expect(opts.body.get('archivo')).toBe(archivo)
   })
 
   it('revertirBaja POSTs to /bajas/{id}/revertir/', async () => {
@@ -71,31 +81,32 @@ describe('api/bajas', () => {
 })
 
 describe('api/reportes', () => {
-  it('generarReporteAuditoria fetches /reportes/auditoria/', async () => {
-    apiFetch.mockResolvedValue({ activos: [], total: 0 })
-    await generarReporteAuditoria({ token: 't1' })
-    expect(apiFetch).toHaveBeenCalledWith('/reportes/auditoria/', { token: 't1' })
+  it('descargarReporteAuditoria descarga el xlsx del año', async () => {
+    descargarArchivo.mockResolvedValue(undefined)
+    await descargarReporteAuditoria(2024)
+    expect(descargarArchivo).toHaveBeenCalledWith(
+      '/reportes/auditoria/?anio=2024', 'reporte_auditoria_2024.xlsx')
   })
 
-  it('generarReporteFinanciero fetches /reportes/financiero/ with the cutoff month', async () => {
-    apiFetch.mockResolvedValue({ corte: '2026-06', activos: [], totalLibros: 0, totalDep: 0 })
-    await generarReporteFinanciero('2026-06', { token: 't1' })
-    expect(apiFetch).toHaveBeenCalledWith('/reportes/financiero/?corte=2026-06', { token: 't1' })
+  it('descargarReporteFinanciero descarga el xlsx del mes de corte', async () => {
+    descargarArchivo.mockResolvedValue(undefined)
+    await descargarReporteFinanciero('2026-06')
+    expect(descargarArchivo).toHaveBeenCalledWith(
+      '/reportes/financiero/?corte=2026-06', 'reporte_financiero_2026-06.xlsx')
   })
 })
 
 describe('api/auth', () => {
-  it('login POSTs credentials to /auth/login/', async () => {
-    apiFetch.mockResolvedValue({
-      token: 't1', empresa: 'Comercial Rivera S.A.',
-      usuario: { nombre: 'Marcela Rivera S.', cargo: 'Contadora general', iniciales: 'MR' },
-    })
+  it('login POSTs credentials + empresa hint to /auth/login/', async () => {
+    apiFetch.mockResolvedValue({ username: 'mrivera', empresa: 'Comercial Rivera S.A.' })
 
     await login('mrivera', 'secreta123')
 
+    // El slug de empresa se deriva del hostname; en jsdom (localhost) es vacío.
+    // La derivación real por subdominio se cubre en lib/apiBase.test.js.
     expect(apiFetch).toHaveBeenCalledWith('/auth/login/', {
       method: 'POST',
-      body: { usuario: 'mrivera', password: 'secreta123' },
+      body: { usuario: 'mrivera', password: 'secreta123', empresa: '' },
     })
   })
 })

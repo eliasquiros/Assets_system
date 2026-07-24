@@ -18,59 +18,35 @@ beforeEach(() => {
 })
 
 describe('AuditoriaCard', () => {
-  it('generates the report and shows the resulting preview', async () => {
-    const mutate = vi.fn()
-    useToast.mockReturnValue({ showToast: vi.fn() })
-    useGenerarAuditoria.mockReturnValue({
-      mutate, isPending: false, isError: false,
-      isSuccess: true, data: { activos: [{ num: 'AF-0001', nombre: 'Laptop Dell', libros: 255000 }], total: 1 },
-    })
-
-    render(<AuditoriaCard />)
-    await userEvent.click(screen.getByText('Generar y exportar'))
-
-    expect(mutate).toHaveBeenCalledTimes(1)
-    expect(screen.getByText('Reporte generado — 1 activos incluidos')).toBeInTheDocument()
-    expect(screen.getByText('AF-0001')).toBeInTheDocument()
-  })
-
-  it('calls showToast when the export button is clicked', async () => {
+  it('descarga el reporte del año seleccionado', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(undefined)
     const showToast = vi.fn()
     useToast.mockReturnValue({ showToast })
-    useGenerarAuditoria.mockReturnValue({
-      mutate: vi.fn(), isPending: false, isError: false,
-      isSuccess: true, data: { activos: [], total: 0 },
-    })
+    useGenerarAuditoria.mockReturnValue({ mutateAsync, isPending: false, isError: false })
 
     render(<AuditoriaCard />)
-    await userEvent.click(screen.getByText('↓ Exportar reporte_auditoria.xlsx'))
-    expect(showToast).toHaveBeenCalledWith('Exportado: reporte_auditoria.xlsx', 'success')
+    const anioActual = new Date().getFullYear()
+    await userEvent.selectOptions(screen.getByLabelText('Año del reporte'), String(anioActual - 1))
+    await userEvent.click(screen.getByText('Generar y descargar'))
+
+    expect(mutateAsync).toHaveBeenCalledWith(anioActual - 1)
+    expect(showToast).toHaveBeenCalledWith(`Reporte de auditoría ${anioActual - 1} descargado`, 'success')
   })
 })
 
 describe('FinancieroCard', () => {
-  it('generates the report for the selected cutoff month', async () => {
-    const mutate = vi.fn()
-    useToast.mockReturnValue({ showToast: vi.fn() })
-    useGenerarFinanciero.mockReturnValue({ mutate, isPending: false, isError: false, isSuccess: false })
+  it('descarga el reporte del mes de corte seleccionado', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(undefined)
+    const showToast = vi.fn()
+    useToast.mockReturnValue({ showToast })
+    useGenerarFinanciero.mockReturnValue({ mutateAsync, isPending: false, isError: false })
 
     render(<FinancieroCard />)
-    await userEvent.click(screen.getByText('Generar'))
+    await userEvent.selectOptions(screen.getByLabelText('Mes de corte'), '2026-03')
+    await userEvent.click(screen.getByText('Generar y descargar'))
 
-    expect(mutate).toHaveBeenCalledWith('2026-06')
-  })
-
-  it('shows the totals row once the report is generated', () => {
-    useToast.mockReturnValue({ showToast: vi.fn() })
-    useGenerarFinanciero.mockReturnValue({
-      mutate: vi.fn(), isPending: false, isError: false, isSuccess: true,
-      data: { corte: '2026-06', activos: [{ num: 'AF-0001', nombre: 'Laptop Dell', libros: 255000, dep: 595000 }], totalLibros: 255000, totalDep: 595000 },
-    })
-
-    render(<FinancieroCard />)
-    expect(screen.getByText('TOTAL VIGENTES (1)')).toBeInTheDocument()
-    // libros and totalLibros are equal in this fixture, so the formatted amount appears twice (row + total).
-    expect(screen.getAllByText('₡ 255.000')).toHaveLength(2)
+    expect(mutateAsync).toHaveBeenCalledWith('2026-03')
+    expect(showToast).toHaveBeenCalledWith('Reporte financiero — marzo 2026 descargado', 'success')
   })
 })
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fmtDate, fmtRemaining } from './date'
+import { calcularDepreciacionPreview } from './depreciacion'
 import { money } from './money'
 import { validateActivo, validateRetiro } from './validators'
 
@@ -38,18 +39,22 @@ describe('fmtRemaining', () => {
 })
 
 describe('money', () => {
+  // money() usa un espacio NO separable ( ) entre el ₡ y el número para que
+  // el signo no quede solo al saltar de línea; se normaliza a espacio al comparar.
+  const fmt = (n) => money(n).replace(/ /g, ' ')
+
   it('formats a positive integer with the colón symbol and thousands separator', () => {
-    expect(money(850000)).toBe('₡ 850.000')
+    expect(fmt(850000)).toBe('₡ 850.000')
   })
 
   it('rounds decimals', () => {
-    expect(money(1234.6)).toBe('₡ 1.235')
+    expect(fmt(1234.6)).toBe('₡ 1.235')
   })
 
   it('treats null, undefined and NaN as zero', () => {
-    expect(money(null)).toBe('₡ 0')
-    expect(money(undefined)).toBe('₡ 0')
-    expect(money(Number('x'))).toBe('₡ 0')
+    expect(fmt(null)).toBe('₡ 0')
+    expect(fmt(undefined)).toBe('₡ 0')
+    expect(fmt(Number('x'))).toBe('₡ 0')
   })
 })
 
@@ -76,9 +81,14 @@ describe('validateActivo', () => {
     expect(errors.costo).toBe('Debe ser mayor a cero')
   })
 
-  it('rejects a vida util of zero or less', () => {
+  it('rejects a negative vida util', () => {
     const errors = validateActivo({ ...VALID_ACTIVO, vidaUtil: '-1' })
-    expect(errors.vidaUtil).toBe('Debe ser mayor a cero')
+    expect(errors.vidaUtil).toBe('No puede ser negativa')
+  })
+
+  it('accepts a vida util of zero (activo ya totalmente depreciado)', () => {
+    const errors = validateActivo({ ...VALID_ACTIVO, vidaUtil: '0' })
+    expect(errors.vidaUtil).toBeUndefined()
   })
 
   it('rejects a start-of-use date earlier than the acquisition date', () => {
@@ -87,17 +97,34 @@ describe('validateActivo', () => {
   })
 })
 
-describe('validateRetiro', () => {
-  it('returns no errors for a fully valid retiro', () => {
-    expect(validateRetiro({ activoNum: 'AF-0001', motivo: 'Venta', desc: 'detalle' })).toEqual({})
+describe('calcularDepreciacionPreview', () => {
+  it('treats vida util 0 as already fully depreciated', () => {
+    const preview = calcularDepreciacionPreview(850000, 0, '2022-04-01')
+    expect(preview).toEqual({ dep: 850000, libros: 0, estado: 'Totalmente depreciado' })
   })
 
-  it('requires activoNum, motivo and a non-blank desc', () => {
+  it('returns null for a negative vida util', () => {
+    expect(calcularDepreciacionPreview(850000, -1, '2022-04-01')).toBeNull()
+  })
+})
+
+describe('validateRetiro', () => {
+  it('returns no errors for a fully valid retiro', () => {
+    const archivo = new File(['x'], 'c.pdf', { type: 'application/pdf' })
+    expect(validateRetiro({
+      activoNum: 'AF-0001', motivo: 'Venta', desc: 'detalle',
+      fechaEfectiva: '2026-07-09', archivo,
+    })).toEqual({})
+  })
+
+  it('requires activoNum, motivo, desc, fecha efectiva and a backup file', () => {
     const errors = validateRetiro({ activoNum: '', motivo: '', desc: '   ' })
     expect(errors).toEqual({
       activoNum: 'Selecciona un activo',
       motivo: 'Selecciona un motivo',
       desc: 'Ingresa una descripción',
+      fechaEfectiva: 'Ingresa la fecha efectiva',
+      archivo: 'Adjunta un archivo de respaldo',
     })
   })
 })

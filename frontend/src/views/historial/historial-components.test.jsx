@@ -2,7 +2,7 @@
 // action modals) — grouped here since the list/loading/error/empty-state
 // coverage for this feature already lives in HistorialView.test.jsx.
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { BajaCard } from './BajaCard'
@@ -68,6 +68,9 @@ describe('RetiroModal', () => {
     expect(mutateAsync).not.toHaveBeenCalled()
     expect(showToast).toHaveBeenCalledWith('Completa los campos requeridos', 'error')
     expect(screen.getByText('Selecciona un activo')).toBeInTheDocument()
+    // RN-002.2: la fecha efectiva y el archivo de respaldo también son obligatorios.
+    expect(screen.getByText('Ingresa la fecha efectiva')).toBeInTheDocument()
+    expect(screen.getByText('Adjunta un archivo de respaldo')).toBeInTheDocument()
   })
 
   it('submits the retiro and closes the modal on success', async () => {
@@ -78,13 +81,19 @@ describe('RetiroModal', () => {
     useRegistrarBaja.mockReturnValue({ mutateAsync })
     useToast.mockReturnValue({ showToast })
 
+    const archivo = new File(['x'], 'comprobante.pdf', { type: 'application/pdf' })
     render(<RetiroModal onClose={onClose} />)
     await userEvent.selectOptions(screen.getByLabelText(/Activo a retirar/), 'AF-0001')
     await userEvent.selectOptions(screen.getByLabelText(/Motivo/), 'Venta')
     await userEvent.type(screen.getByRole('textbox', { name: /Descripción/ }), 'Venta a colaborador')
+    fireEvent.change(screen.getByLabelText('Fecha efectiva'), { target: { value: '2026-07-09' } })
+    await userEvent.upload(screen.getByLabelText('Archivo de respaldo'), archivo)
     await userEvent.click(screen.getByText('Registrar baja'))
 
-    expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ activoNum: 'AF-0001', motivo: 'Venta', desc: 'Venta a colaborador' }))
+    expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({
+      activoNum: 'AF-0001', motivo: 'Venta', desc: 'Venta a colaborador',
+      fechaEfectiva: '2026-07-09', archivo,
+    }))
     expect(showToast).toHaveBeenCalledWith('Retiro BJ-2026-019 registrado — pendiente en periodo de gracia', 'success')
     expect(onClose).toHaveBeenCalledTimes(1)
   })

@@ -4,55 +4,92 @@ import { apiFetch, ApiError } from './client'
 describe('apiFetch', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+    document.cookie = 'csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT'
   })
 
-  it('GETs with the auth header and returns parsed JSON', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true, status: 200, json: async () => ({ ok: true }),
-    })
+  it('GET envía las cookies y no manda Authorization', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', mockFetch)
 
-    const data = await apiFetch('/activos/', { token: 't1' })
+    const data = await apiFetch('/auth/me/')
 
     expect(data).toEqual({ ok: true })
-    expect(mockFetch).toHaveBeenCalledWith('/api/activos/', {
+    expect(mockFetch).toHaveBeenCalledWith('/api/auth/me/', {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t1' },
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: undefined,
     })
   })
 
-  it('serializes the body and sets the method for a POST', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 201, json: async () => ({ num: 'AF-0001' }) })
+  it('POST adjunta X-CSRFToken desde la cookie y envía credenciales', async () => {
+    document.cookie = 'csrftoken=abc123'
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ username: 'ana' }) })
     vi.stubGlobal('fetch', mockFetch)
 
-    await apiFetch('/activos/', { method: 'POST', body: { num: 'AF-0001' }, token: 't1' })
+    await apiFetch('/auth/login/', { method: 'POST', body: { usuario: 'ana', password: 'x' } })
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/activos/', {
+    expect(mockFetch).toHaveBeenCalledWith('/api/auth/login/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t1' },
-      body: JSON.stringify({ num: 'AF-0001' }),
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': 'abc123' },
+      credentials: 'include',
+      body: JSON.stringify({ usuario: 'ana', password: 'x' }),
     })
   })
 
-  it('returns null for a 204 response', async () => {
+  it('devuelve null en un 204', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 204 }))
-    const data = await apiFetch('/bajas/1/revertir/', { method: 'POST' })
-    expect(data).toBeNull()
+    expect(await apiFetch('/auth/logout/', { method: 'POST' })).toBeNull()
   })
 
-  it('throws ApiError with the server detail message on a non-ok response', async () => {
+  it('lanza ApiError con el detail del servidor en respuesta no-ok', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false, status: 400, json: async () => ({ detail: 'Costo debe ser mayor a cero' }),
+      ok: false, status: 401, json: async () => ({ detail: 'Usuario o contraseña incorrectos' }),
     }))
-    await expect(apiFetch('/activos/')).rejects.toThrow('Costo debe ser mayor a cero')
+    await expect(apiFetch('/auth/login/', { method: 'POST' })).rejects.toThrow('Usuario o contraseña incorrectos')
   })
 
-  it('throws a connection ApiError when fetch itself rejects', async () => {
+  it('lanza ApiError de conexión cuando fetch rechaza', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')))
-    const error = await apiFetch('/activos/').catch((e) => e)
+    const error = await apiFetch('/auth/me/').catch((e) => e)
     expect(error).toBeInstanceOf(ApiError)
-    expect(error.message).toBe('No se pudo conectar con el servidor')
     expect(error.status).toBe(0)
+  })
+
+  it('en un 401 intenta refrescar la sesión y reintenta la petición original', async () => {
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({ detail: 'expirado' }) })
+      .mockResolvedValueOnce({ ok: true, status: 200 })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ items: [] }) })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const data = await apiFetch('/activos/')
+
+    expect(data).toEqual({ items: [] })
+    expect(mockFetch).toHaveBeenCalledTimes(3)
+    expect(mockFetch.mock.calls[1][0]).toBe('/api/auth/refresh/')
+  })
+
+  it('si el refresh también falla, propaga el ApiError original y dispara auth:expired', async () => {
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({ detail: 'Sesión expirada' }) })
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) })
+    vi.stubGlobal('fetch', mockFetch)
+    const onExpired = vi.fn()
+    window.addEventListener('auth:expired', onExpired)
+
+    await expect(apiFetch('/activos/')).rejects.toThrow('Sesión expirada')
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(onExpired).toHaveBeenCalledTimes(1)
+
+    window.removeEventListener('auth:expired', onExpired)
+  })
+
+  it('un 401 en /auth/login/ no intenta refrescar', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 401, json: async () => ({ detail: 'Usuario o contraseña incorrectos' }),
+    }))
+    await expect(apiFetch('/auth/login/', { method: 'POST' })).rejects.toThrow('Usuario o contraseña incorrectos')
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 })

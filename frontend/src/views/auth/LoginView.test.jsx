@@ -6,6 +6,12 @@ import { useAuth } from '../../context/AuthContext'
 
 vi.mock('../../context/AuthContext')
 
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useNavigate: () => mockNavigate,
+}))
+
 describe('LoginView', () => {
   it('shows a validation error when submitting with empty fields', async () => {
     useAuth.mockReturnValue({ login: vi.fn() })
@@ -38,5 +44,19 @@ describe('LoginView', () => {
     await userEvent.click(screen.getByText('Ingresar'))
 
     expect(await screen.findByText('Usuario o contraseña incorrectos')).toBeInTheDocument()
+  })
+
+  it('toggles password visibility when clicking the eye button', async () => {
+    useAuth.mockReturnValue({ login: vi.fn() })
+    render(<LoginView />)
+
+    const passwordInput = screen.getByLabelText('Contraseña')
+    expect(passwordInput).toHaveAttribute('type', 'password')
+
+    await userEvent.click(screen.getByLabelText('Mostrar contraseña'))
+    expect(passwordInput).toHaveAttribute('type', 'text')
+
+    await userEvent.click(screen.getByLabelText('Ocultar contraseña'))
+    expect(passwordInput).toHaveAttribute('type', 'password')
   })
 })

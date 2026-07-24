@@ -45,6 +45,7 @@ export function useEditarActivo() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['activos'] })
       queryClient.invalidateQueries({ queryKey: ['activo', variables.num] })
+      queryClient.invalidateQueries({ queryKey: ['movimientos', variables.num] })
     },
   })
 }

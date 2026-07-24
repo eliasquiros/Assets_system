@@ -5,6 +5,9 @@ __pycache__/
 *.sqlite3
 .env
 superpowers/
+
+# Archivos privados subidos por usuarios (respaldos de retiro, etc.)
+backend/media_privado/
 # Frontend (Vite/React)
 node_modules/
 dist/

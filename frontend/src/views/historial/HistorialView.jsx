@@ -6,6 +6,7 @@ import { RevertModal } from './RevertModal'
 import { Button } from '../../components/Button'
 import { Spinner } from '../../components/Spinner'
 import { EmptyState } from '../../components/EmptyState'
+import styles from './HistorialView.module.css'
 
 export function HistorialView() {
   const navigate = useNavigate()
@@ -17,6 +18,9 @@ export function HistorialView() {
       <div className="page-head">
         <h1>Historial de retiro / baja</h1>
         <Button onClick={() => navigate('/historial/nueva')}>+ Registrar retiro</Button>
+      </div>
+      <div className={styles.info}>
+        Una baja queda "pendiente" durante 2 días y puede revertirse en ese período. Una vez que se vuelve <strong>definitiva</strong>, ya no puede revertirse ni editarse.
       </div>
       {isLoading && <Spinner size={24} />}
       {isError && <EmptyState message="No se pudo conectar con el servidor." />}

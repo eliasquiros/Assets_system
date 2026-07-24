@@ -118,8 +118,20 @@ describe('ActivoDetailDrawer', () => {
     useMovimientos.mockReturnValue({ data: MOVIMIENTOS })
     renderDrawer()
     expect(screen.getByText('Laptop Dell')).toBeInTheDocument()
-    expect(screen.getByText('₡ 255.000')).toBeInTheDocument()
+    // El monto en el drawer trae espacio no separable (money) y zero-width
+    // spaces tras cada punto (moneyWrap): se ignoran al comparar el texto.
+    const limpio = (t) => t.replace(/[ ​]/g, (c) => (c === ' ' ? ' ' : ''))
+    expect(screen.getByText((content) => limpio(content) === '₡ 255.000')).toBeInTheDocument()
     expect(screen.getByText('Alta / Registro inicial')).toBeInTheDocument()
     expect(screen.getByText('Registro inicial del activo')).toBeInTheDocument()
+    expect(screen.getByText('Detalle adicional')).toBeInTheDocument()
+  })
+
+  it('shows the detalle field instead of the system registration date', () => {
+    useActivo.mockReturnValue({ data: { ...ACTIVO, detalle: 'Oficina de gerencia, a cargo de Juan Pérez' }, isLoading: false })
+    useMovimientos.mockReturnValue({ data: MOVIMIENTOS })
+    renderDrawer()
+    expect(screen.getByText('Oficina de gerencia, a cargo de Juan Pérez')).toBeInTheDocument()
+    expect(screen.queryByText('Registrado en sistema')).not.toBeInTheDocument()
   })
 })
