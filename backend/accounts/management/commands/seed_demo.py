@@ -45,8 +45,12 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         empresa, _ = Empresa.objects.get_or_create(
             schema_name='empresa_demo',
-            defaults={'nombre': 'Demo', 'activa': True},
+            defaults={'nombre': 'Demo', 'activa': True, 'subdominio': 'demo'},
         )
+        # Idempotente: fija el slug aunque la empresa ya existiera de un seed previo.
+        if empresa.subdominio != 'demo':
+            empresa.subdominio = 'demo'
+            empresa.save(update_fields=['subdominio'])
         Domain.objects.get_or_create(
             domain='demo.localhost', tenant=empresa,
             defaults={'is_primary': True},
