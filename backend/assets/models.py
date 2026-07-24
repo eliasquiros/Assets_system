@@ -151,6 +151,9 @@ class Activo(models.Model):
     depreciacion_acumulada_actual = models.DecimalField(max_digits=14, decimal_places=2)
     serie = models.CharField(max_length=100, null=True, blank=True)
     factura = models.CharField(max_length=100, null=True, blank=True)
+    # Texto libre: quien lo posee o donde se encuentra en especifico, mas alla
+    # del area/localizacion general. Opcional, no genera movimiento (RF-001).
+    detalle = models.TextField(null=True, blank=True)
     localizacion = models.ForeignKey(
         Localizacion, on_delete=models.PROTECT, related_name='activos',
     )

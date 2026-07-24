@@ -54,13 +54,13 @@ class ActivoDetailSerializer(ActivoListSerializer):
     vidaUtil = serializers.IntegerField(source='vida_util_anios')
     serie = serializers.CharField(allow_null=True)
     factura = serializers.CharField(allow_null=True)
+    # Texto libre: quien posee el activo o donde esta en especifico. Reemplaza
+    # a "Registrado en sistema" en la ficha (menos util que este dato).
+    detalle = serializers.CharField(allow_null=True)
     proveedor = serializers.CharField(source='proveedor.nombre', allow_null=True, default=None)
     marca = serializers.CharField(source='marca.nombre', allow_null=True, default=None)
     modelo = serializers.CharField(source='modelo.nombre', allow_null=True, default=None)
     origen = serializers.CharField(source='origen.nombre', allow_null=True, default=None)
-    # fecha_creacion es DateTimeField; se emite como fecha (YYYY-MM-DD) para que
-    # el fmtDate del frontend la formatee igual que las demas fechas.
-    fechaRegistro = serializers.DateTimeField(source='fecha_creacion', format='%Y-%m-%d')
     # version (bloqueo optimista) e IDs de catalogo para precargar los dropdowns
     # del modal de edicion; los nombres de arriba siguen sirviendo al drawer.
     version = serializers.IntegerField(read_only=True)
@@ -73,8 +73,8 @@ class ActivoDetailSerializer(ActivoListSerializer):
 
     class Meta(ActivoListSerializer.Meta):
         fields = ActivoListSerializer.Meta.fields + [
-            'fechaUso', 'vidaUtil', 'serie', 'factura', 'proveedor',
-            'marca', 'modelo', 'origen', 'fechaRegistro',
+            'fechaUso', 'vidaUtil', 'serie', 'factura', 'detalle', 'proveedor',
+            'marca', 'modelo', 'origen',
             'version', 'categoriaId', 'localizacionId', 'proveedorId',
             'marcaId', 'modeloId', 'origenId',
         ]
@@ -124,6 +124,10 @@ class ActivoCreateSerializer(serializers.ModelSerializer):
     serie = serializers.CharField(
         max_length=100, required=False, allow_null=True, allow_blank=True, default=None)
     factura = serializers.CharField(max_length=100)
+    # Texto libre opcional: quien posee el activo o donde esta en especifico.
+    # No genera movimiento (es descriptivo, igual que serie/proveedor).
+    detalle = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, default=None)
     categoria = serializers.PrimaryKeyRelatedField(queryset=Categoria.objects.all())
     localizacion = serializers.PrimaryKeyRelatedField(queryset=Localizacion.objects.all())
     proveedor = serializers.PrimaryKeyRelatedField(queryset=Proveedor.objects.all())
@@ -137,7 +141,7 @@ class ActivoCreateSerializer(serializers.ModelSerializer):
         model = Activo
         fields = [
             'num', 'nombre', 'costo', 'fechaAdq', 'fechaUso', 'vidaUtil',
-            'serie', 'factura', 'categoria', 'localizacion',
+            'serie', 'factura', 'detalle', 'categoria', 'localizacion',
             'proveedor', 'marca', 'modelo', 'origen',
         ]
 
@@ -149,6 +153,8 @@ class ActivoCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if not attrs.get('serie'):
             attrs['serie'] = None
+        if not attrs.get('detalle'):
+            attrs['detalle'] = None
         costo = attrs.get('costo_original')
         if costo is not None and costo <= 0:
             raise serializers.ValidationError({'costo': 'Debe ser mayor a cero.'})
@@ -216,6 +222,8 @@ class ActivoEditSerializer(serializers.ModelSerializer):
     serie = serializers.CharField(
         max_length=100, required=False, allow_null=True, allow_blank=True, default=None)
     factura = serializers.CharField(max_length=100)
+    detalle = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, default=None)
     categoria = serializers.PrimaryKeyRelatedField(queryset=Categoria.objects.all())
     localizacion = serializers.PrimaryKeyRelatedField(queryset=Localizacion.objects.all())
     proveedor = serializers.PrimaryKeyRelatedField(queryset=Proveedor.objects.all())
@@ -232,13 +240,15 @@ class ActivoEditSerializer(serializers.ModelSerializer):
         model = Activo
         fields = [
             'nombre', 'costo', 'fechaAdq', 'fechaUso', 'vidaUtil',
-            'serie', 'factura', 'categoria', 'localizacion',
+            'serie', 'factura', 'detalle', 'categoria', 'localizacion',
             'proveedor', 'marca', 'modelo', 'origen', 'version', 'motivo',
         ]
 
     def validate(self, attrs):
         if not attrs.get('serie'):
             attrs['serie'] = None
+        if not attrs.get('detalle'):
+            attrs['detalle'] = None
         costo = attrs.get('costo_original')
         if costo is not None and costo <= 0:
             raise serializers.ValidationError({'costo': 'Debe ser mayor a cero.'})
@@ -295,7 +305,7 @@ class ActivoEditSerializer(serializers.ModelSerializer):
 
     def _movimientos(self, activo, anterior, motivo):
         """Un movimiento por dimension auditable cambiada. Los campos descriptivos
-        (nombre, serie, factura, proveedor, marca, modelo, origen) no producen
+        (nombre, serie, factura, detalle, proveedor, marca, modelo, origen) no producen
         movimiento: el historial es solo de valor/clasificacion (RF-007.1)."""
         base = dict(activo=activo, fecha_efectiva=date.today(),
                     usuario=self.context['request'].user, nota=motivo)
