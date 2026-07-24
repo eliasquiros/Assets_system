@@ -1,4 +1,58 @@
-.bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
-.search { flex: 1; min-width: 240px; max-width: 360px; height: 40px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 13px; }
-.select { height: 40px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 13px; min-width: 190px; background: #fff; }
-.clear { height: 40px; padding: 0 12px; border: 1px solid var(--color-border); background: #fff; border-radius: 8px; font-size: 12.5px; font-weight: 500; color: var(--color-muted); cursor: pointer; }
+.bar {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  margin-bottom: 14px;
+}
+
+/* ---- Buscador ------------------------------------------------------------ */
+.searchWrap { position: relative; display: flex; flex: 1; min-width: 240px; max-width: 380px; }
+
+.searchIcon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--ink-4); pointer-events: none;
+  transition: color var(--dur-1) var(--ease);
+}
+.searchWrap:focus-within .searchIcon { color: var(--accent); }
+
+.search {
+  width: 100%;
+  height: var(--h-control);
+  padding: 0 12px 0 36px;
+  border-radius: var(--r-sm);
+  font-size: 13.5px;
+  box-shadow: var(--sh-1);
+}
+
+/* ---- Selects -------------------------------------------------------------- */
+.select {
+  height: var(--h-control);
+  padding: 0 12px;
+  border-radius: var(--r-sm);
+  font-size: 13.5px;
+  min-width: 180px;
+  box-shadow: var(--sh-1);
+}
+
+/* ---- Limpiar -------------------------------------------------------------- */
+/* El texto es un unico nodo ("✕ Limpiar filtros"); no separarlo en icono +
+   texto, hay pruebas que lo buscan completo. */
+.clear {
+  height: var(--h-control);
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  font-size: 12.5px; font-weight: 500; letter-spacing: -.005em;
+  color: var(--ink-3);
+  box-shadow: var(--sh-1);
+  transition: color var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+  animation: clearIn var(--dur-2) var(--ease);
+}
+.clear:hover { color: var(--err-fg); border-color: var(--err-line); background: var(--err-bg); }
+
+@keyframes clearIn { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 700px) {
+  .bar { gap: 8px; }
+  .searchWrap { flex: 1 1 100%; max-width: none; }
+  .select { flex: 1; min-width: 0; }
+}

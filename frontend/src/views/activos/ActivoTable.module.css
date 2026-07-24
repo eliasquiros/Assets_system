@@ -1,17 +1,106 @@
 /* overflow-x: auto (no hidden): si un monto muy grande ensancha una columna
    mas alla del min-width de la tabla, se puede desplazar en vez de cortarse. */
-.wrap { background: #fff; border: 1px solid var(--color-border); border-radius: 10px; overflow-x: auto; }
+.wrap {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  overflow-x: auto;
+  /* Sombras de scroll: las dos capas fijas son "tapas" del color del fondo y
+     las dos con scroll-attachment son el degradado. Cuando la tabla esta
+     desplazada, aparece el sombreado en el borde correspondiente — la unica
+     pista de que hay mas columnas fuera de vista. */
+  background-image:
+    linear-gradient(to right, var(--surface) 30%, transparent),
+    linear-gradient(to left, var(--surface) 30%, transparent),
+    linear-gradient(to right, rgba(22, 24, 28, .10), transparent 18px),
+    linear-gradient(to left, rgba(22, 24, 28, .10), transparent 18px);
+  background-position: left center, right center, left center, right center;
+  background-repeat: no-repeat;
+  background-size: 42px 100%, 42px 100%, 18px 100%, 18px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* El spinner suelto quedaba pegado al borde izquierdo; encerrarlo en una caja
+   de la misma altura que la tabla vacia evita el salto de layout al cargar. */
+.loading {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 220px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+}
+
 .table { width: 100%; border-collapse: collapse; min-width: 1180px; }
-.table th { text-align: left; padding: 11px 14px; font-size: 10.5px; font-weight: 600; color: #6A7A92; text-transform: uppercase; background: #F5F7FB; border-bottom: 1px solid var(--color-border); }
-.table td { padding: 12px 14px; border-bottom: 1px solid var(--color-border-light); font-size: 13px; }
-.actions { display: flex; gap: 8px; }
+
+.table th {
+  text-align: left;
+  padding: 11px 14px;
+  font-size: 10.5px; font-weight: 600;
+  color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: .07em;
+  white-space: nowrap;
+  background: var(--surface-sunk);
+  border-bottom: 1px solid var(--line);
+}
+
+.table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13px;
+  color: var(--ink-2);
+  vertical-align: middle;
+}
+.table tbody tr:last-child td { border-bottom: none; }
+
+/* Nombre y numero de activo: la identidad de la fila, en tinta plena. */
+.table td:nth-child(1) { color: var(--ink); font-weight: 500; }
+.table td:nth-child(2) { color: var(--ink); font-weight: 500; }
+
+/* Columnas de dinero (costo, libros, dep. acumulada) alineadas a la derecha.
+   Con .mono + tabular-nums del global, los digitos quedan en columna exacta:
+   asi se comparan de un vistazo, como en un libro mayor. */
+.table th:nth-child(n+5):nth-child(-n+7),
+.table td:nth-child(n+5):nth-child(-n+7) { text-align: right; }
+.table td:nth-child(n+5):nth-child(-n+7) { color: var(--ink); }
+
+/* Valor en libros: la cifra de referencia de la fila. */
+.table td:nth-child(6) { font-weight: 500; }
+
+/* Resalte de fila. Sin zebra: con hover claro se sigue la fila igual de bien y
+   la tabla queda mucho mas limpia. */
+.table tbody tr { transition: background-color var(--dur-1) var(--ease); }
+.table tbody tr:hover { background: var(--surface-sunk); }
+
+/* ---- Acciones ------------------------------------------------------------- */
+.actions { display: flex; gap: 6px; }
+
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
-  height: 32px; padding: 0 14px;
-  border: 1px solid var(--color-border); border-radius: 8px;
-  font-size: 12.5px; font-weight: 600; text-decoration: none; white-space: nowrap;
-  color: var(--color-navy); background: #fff;
+  height: 30px; padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--r-xs);
+  font-size: 12.5px; font-weight: 500; letter-spacing: -.005em;
+  text-decoration: none; white-space: nowrap;
+  color: var(--ink-3);
+  background: transparent;
+  transition: background-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
 }
-.btn:hover { background: var(--color-bg); }
-.btnPrimary { background: var(--color-navy); color: #fff; border-color: var(--color-navy); }
-.btnPrimary:hover { background: var(--color-navy-dark); }
+.btn:hover { background: var(--canvas-2); color: var(--ink); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* "Ver mas" es la accion esperada de la fila: se distingue con borde y color de
+   acento, no rellena — un boton solido por fila convertiria la tabla en un
+   muro de bloques oscuros. */
+.btnPrimary {
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--surface);
+}
+.btnPrimary:hover { background: var(--accent-soft); color: var(--accent-press); border-color: var(--accent); }
+
+@media (max-width: 700px) {
+  .wrap { border-radius: var(--r-md); }
+  .table td, .table th { padding: 10px 12px; }
+}

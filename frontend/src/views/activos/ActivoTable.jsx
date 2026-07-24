@@ -7,7 +7,7 @@ import { fmtDate } from '../../lib/date'
 import styles from './ActivoTable.module.css'
 
 export function ActivoTable({ isLoading, isError, activos }) {
-  if (isLoading) return <Spinner size={24} />
+  if (isLoading) return <div className={styles.loading}><Spinner size={24} /></div>
   if (isError) return <EmptyState message="No se pudo conectar con el servidor." />
   if (activos.length === 0) return <EmptyState message="No se encontraron activos con los filtros actuales." />
 
