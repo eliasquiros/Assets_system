@@ -132,6 +132,33 @@ class RetiroTest(TenantTestCase):
             self.assertTrue(Movimiento.objects.filter(
                 activo__numero_activo='COM-0004', tipo_evento='REVERSION_BAJA').exists())
 
+    def test_revertir_fuera_de_gracia_da_409_aunque_el_cron_no_haya_corrido(self):
+        # Regresion: el chequeo de "vencido" debe usar el mismo limite exacto
+        # (fecha_registro + GRACIA) que promover_retiros_definitivos, no una
+        # fecha de calendario truncada. Se envejece la baja mas alla de las 48h
+        # pero SIN correr promover_retiros_definitivos (el retiro sigue
+        # PENDIENTE en la BD), para probar el chequeo independiente del cron.
+        self._activo('COM-0009')
+        rid = self._registrar('COM-0009').json()['id']
+        with tenant_context(self.tenant):
+            Retiro.objects.filter(pk=rid).update(
+                fecha_registro=timezone.now() - timedelta(days=2, minutes=1))
+        resp = self.client.post(f'/api/bajas/{rid}/revertir/', HTTP_HOST=self.host)
+        self.assertEqual(resp.status_code, 409, resp.content)
+        with tenant_context(self.tenant):
+            self.assertEqual(Retiro.objects.get(pk=rid).estado, 'PENDIENTE')
+
+    def test_revertir_justo_antes_de_vencer_la_gracia_si_procede(self):
+        # Contraparte del test anterior: un minuto ANTES del limite exacto
+        # todavia debe poder revertirse.
+        self._activo('COM-0010')
+        rid = self._registrar('COM-0010').json()['id']
+        with tenant_context(self.tenant):
+            Retiro.objects.filter(pk=rid).update(
+                fecha_registro=timezone.now() - timedelta(days=2) + timedelta(minutes=1))
+        resp = self.client.post(f'/api/bajas/{rid}/revertir/', HTTP_HOST=self.host)
+        self.assertEqual(resp.status_code, 200, resp.content)
+
     def test_promover_a_definitiva_congela_depreciacion(self):
         activo = self._activo('COM-0005')
         rid = self._registrar('COM-0005', fecha='2026-06-30').json()['id']

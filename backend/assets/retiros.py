@@ -20,6 +20,7 @@ from datetime import date, timedelta
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
@@ -145,7 +146,12 @@ class RetiroRevertirView(APIView):
         )
         # Solo se revierte lo que sigue pendiente y dentro del periodo de gracia,
         # sin depender de que la tarea de promocion ya haya corrido (RN-002.4/.6).
-        vencido = date.today() > (retiro.fecha_registro + GRACIA).date()
+        # Comparacion por instante exacto (timezone.now(), no date.today()): igual
+        # criterio que usa promover_retiros_definitivos (fecha_registro + GRACIA),
+        # para que este chequeo y la promocion definan el mismo limite al segundo.
+        # Truncar a .date() dejaba revertir hasta casi 24h despues del vencimiento
+        # real si el cron de promocion aun no habia corrido.
+        vencido = timezone.now() >= retiro.fecha_registro + GRACIA
         if retiro.estado != Retiro.PENDIENTE or vencido:
             return Response(
                 {'detail': 'La baja ya no puede revertirse.'},
