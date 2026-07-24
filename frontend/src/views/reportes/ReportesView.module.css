@@ -1,1 +1,12 @@
-.grid { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+/* Dos columnas iguales que colapsan a una: las tarjetas de reporte tienen el
+   mismo peso, ninguna es la principal. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 520px) {
+  .grid { grid-template-columns: 1fr; }
+}

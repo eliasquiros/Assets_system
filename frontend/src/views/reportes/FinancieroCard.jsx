@@ -31,7 +31,17 @@ export function FinancieroCard() {
 
   return (
     <div className={styles.card}>
-      <h3>Reporte financiero</h3>
+      <div className={styles.head}>
+        <span className={styles.icon} aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+            <path d="M7 16v-5" />
+            <path d="M12 16V8" />
+            <path d="M17 16v-3" />
+          </svg>
+        </span>
+        <h3>Reporte financiero</h3>
+      </div>
       <p>Valoración del inventario de activos fijos: valor original, depreciación acumulada y valor en libros al último día del mes de corte, agrupados por categoría.</p>
       <div className={styles.cutoffRow}>
         <select value={cutoff} onChange={(e) => setCutoff(e.target.value)} aria-label="Mes de corte">

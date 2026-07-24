@@ -5,7 +5,9 @@ import styles from './ReportesView.module.css'
 export function ReportesView() {
   return (
     <div>
-      <h1>Reportes</h1>
+      <div className="page-head">
+        <h1>Reportes</h1>
+      </div>
       <div className={styles.grid}>
         <AuditoriaCard />
         <FinancieroCard />
