@@ -1,19 +1,65 @@
 .nav {
-  position: fixed; top: 60px; left: 0; right: 0; height: 47px;
-  background: #fff; border-bottom: 1px solid var(--color-border);
-  display: flex; gap: 2px; padding: 0 18px; z-index: 59;
+  position: fixed; top: var(--h-header); left: 0; right: 0; height: var(--h-nav);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: stretch; gap: 2px;
+  padding: 0 calc(var(--pad-x) - 10px);
+  z-index: 59;
+  /* En pantallas angostas las pestañas se desplazan en vez de apilarse o
+     encogerse: asi ninguna queda cortada ni cambia de sitio. */
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.nav::-webkit-scrollbar { display: none; }
+
 .tab {
+  position: relative;
   display: flex; align-items: center; gap: 8px;
-  padding: 0 14px; height: 47px;
-  font-weight: 600; font-size: 13px; color: #6B7A90;
-  border-bottom: 2px solid transparent; text-decoration: none;
+  padding: 0 12px; height: var(--h-nav);
+  font-weight: 500; font-size: 13.5px; letter-spacing: -.01em;
+  color: var(--ink-3);
+  white-space: nowrap; flex: none;
+  transition: color var(--dur-2) var(--ease);
 }
-.active { color: var(--color-navy-dark); border-bottom-color: var(--color-blue); }
+
+/* La barra activa es un pseudo-elemento y no un border-bottom: asi puede
+   animar su ancho al cambiar de pestaña sin mover el texto ni un pixel. */
+.tab::after {
+  content: '';
+  /* bottom: 0 y no -1px: .nav es contenedor de scroll horizontal, y cualquier
+     cosa que sobresalga por abajo se recorta o genera scroll vertical. */
+  position: absolute; left: 12px; right: 12px; bottom: 0; height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform var(--dur-2) var(--ease);
+}
+
+.tab:hover { color: var(--ink); }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: var(--r-xs); }
+
+.active { color: var(--ink); font-weight: 600; }
+.active::after { transform: scaleX(1); }
+
+.icon { flex: none; color: var(--ink-4); transition: color var(--dur-2) var(--ease); }
+.tab:hover .icon { color: var(--ink-3); }
+.active .icon { color: var(--accent); }
+
+/* ---- Contador ------------------------------------------------------------ */
 .badge {
-  font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
-  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px; font-weight: 500; letter-spacing: -.01em;
+  min-width: 19px; height: 19px; padding: 0 6px; border-radius: var(--r-full);
   display: inline-flex; align-items: center; justify-content: center;
-  background: #E2E8F1; color: #6B7A90;
+  background: var(--canvas-2); color: var(--ink-3);
+  transition: background-color var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
 }
-.active .badge { background: var(--color-blue); color: #fff; }
+.active .badge { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent-line); }
+
+@media (max-width: 700px) {
+  .nav { padding: 0 6px; }
+  .tab { font-size: 13px; padding: 0 10px; gap: 7px; }
+  .tab::after { left: 10px; right: 10px; }
+}

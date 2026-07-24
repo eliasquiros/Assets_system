@@ -1,37 +1,96 @@
+/* Barra de aplicacion en tinta casi negra: ancla la app, separa el "chrome" de
+   los datos y aporta la sensacion de solidez sin recurrir a color saturado. */
 .header {
-  position: fixed; top: 0; left: 0; right: 0; height: 60px;
-  background: var(--color-navy-dark);
+  position: fixed; top: 0; left: 0; right: 0; height: var(--h-header);
+  background: #16181C;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 22px; z-index: 60;
+  gap: 16px;
+  padding: 0 var(--pad-x);
+  z-index: 60;
+  /* Linea inferior clarisima: define el borde sin dibujar un 1px duro. */
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .07);
 }
-.brand { display: flex; align-items: center; gap: 13px; }
+
+/* ---- Marca -------------------------------------------------------------- */
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .logo {
-  width: 34px; height: 34px; border-radius: 8px;
-  background: linear-gradient(150deg, var(--color-blue), #1B4965);
+  width: 34px; height: 34px; border-radius: var(--r-md); flex: none;
+  background: rgba(255, 255, 255, .08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .10);
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-mono); font-weight: 600; font-size: 14px; color: #fff;
+  color: #fff;
 }
-.title { font-size: 15px; font-weight: 600; color: #fff; }
-.subtitle { font-size: 10.5px; color: #7E93B4; text-transform: uppercase; }
+.title {
+  font-size: 14px; font-weight: 600; color: #fff;
+  letter-spacing: -.015em; line-height: 1.25;
+  white-space: nowrap;
+}
+.subtitle {
+  font-size: 10px; font-weight: 500; color: #8B9099;
+  text-transform: uppercase; letter-spacing: .08em; line-height: 1.5;
+  white-space: nowrap;
+}
+
+/* ---- Empresa activa -------------------------------------------------------
+   Informativo, no interactivo: sin fondo de "pastilla", sin hover ni cursor de
+   puntero. Se destaca con una franja de acento a la izquierda (misma idea que
+   .highlight en ActivoSummaryBar) y con "Empresa" en mayusculas pequeñas sobre
+   el nombre en cuerpo mayor — jerarquia tipografica, no affordance de boton. */
 .company {
-  display: flex; align-items: center; gap: 10px;
-  background: #0F2A4E; border: 1px solid #21456F; border-radius: 9px;
-  padding: 6px 12px; cursor: pointer; color: #fff;
+  display: flex; flex-direction: column; justify-content: center; gap: 1px;
+  min-width: 0;
+  padding: 2px 0 2px 14px;
+  border-left: 2px solid var(--accent);
 }
-.companyLabel { font-size: 9px; color: #7E93B4; text-transform: uppercase; display: block; }
-.companyName { font-size: 12.5px; font-weight: 600; display: block; }
-.session { display: flex; align-items: center; gap: 18px; }
+.companyLabel {
+  font-size: 9px; font-weight: 600; color: #8B9099;
+  text-transform: uppercase; letter-spacing: .09em; line-height: 1.4;
+}
+.companyName {
+  font-size: 13px; font-weight: 600; letter-spacing: -.01em; color: #fff;
+  line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---- Sesion ------------------------------------------------------------- */
+.session { display: flex; align-items: center; gap: 14px; }
 .user { display: flex; align-items: center; gap: 10px; }
 .userInfo { text-align: right; }
-.userName { font-size: 12.5px; color: #fff; font-weight: 600; }
-.userRole { font-size: 10.5px; color: #7E93B4; }
+.userName {
+  font-size: 12.5px; color: #E7E8EA; font-weight: 500; letter-spacing: -.005em;
+  white-space: nowrap;
+}
 .avatar {
-  width: 34px; height: 34px; border-radius: 50%; background: #1B4965;
+  width: 32px; height: 32px; border-radius: var(--r-full); flex: none;
+  background: rgba(255, 255, 255, .10);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12);
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 600; color: #BBD3EE; font-family: var(--font-mono);
+  font-family: var(--font-mono); font-size: 11.5px; font-weight: 500;
+  letter-spacing: .01em; color: #E7E8EA;
 }
 .logout {
-  background: transparent; border: 1px solid #21456F; color: #BBD3EE;
-  border-radius: 7px; padding: 6px 12px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, .14);
+  color: #C6CAD1;
+  border-radius: var(--r-sm);
+  padding: 7px 13px; font-size: 12.5px; font-weight: 500; letter-spacing: -.005em;
+  transition: background-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
 }
-.logout:hover { background: #0F2A4E; }
+.logout:hover { background: rgba(255, 255, 255, .09); color: #fff; border-color: rgba(255, 255, 255, .24); }
+.logout:focus-visible { outline: 2px solid rgba(255, 255, 255, .55); outline-offset: 2px; }
+
+/* ---- Responsive ---------------------------------------------------------- */
+/* En pantallas angostas se ocultan los elementos redundantes por orden de
+   prioridad: bajada de la marca -> nombre de usuario -> selector de empresa.
+   Ningun control desaparece: "Salir" y el avatar siguen presentes. */
+@media (max-width: 1080px) {
+  .subtitle { display: none; }
+}
+@media (max-width: 860px) {
+  .userInfo { display: none; }
+  .session { gap: 10px; }
+}
+@media (max-width: 700px) {
+  .header { padding: 0 14px; gap: 10px; }
+  .title { font-size: 13px; }
+  .company { display: none; }
+}
