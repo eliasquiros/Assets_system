@@ -1,6 +1,17 @@
-.card { background: #fff; border: 1px solid var(--color-border); border-radius: 11px; overflow: hidden; margin-bottom: 14px; }
-.head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 15px 18px; border-bottom: 1px solid var(--color-border-light); }
-.body { padding: 15px 18px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px 22px; margin-bottom: 16px; }
-.pending { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 14px; background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); border-radius: 9px; }
-.reverted { padding: 10px 14px; background: var(--color-neutral-bg); border: 1px solid var(--color-neutral-border); border-radius: 9px; font-size: 12px; color: var(--color-neutral-text); }
+.card { background: #fff; border: 1px solid var(--color-border); border-radius: 9px; overflow: hidden; margin-bottom: 10px; font-size: 13.5px; }
+.head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 10px 13px; border-bottom: 1px solid var(--color-border-light); }
+.identidad { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.id { font-size: 12px; color: var(--color-muted-2); }
+.nombre { font-weight: 600; font-size: 14px; }
+.num { font-size: 12px; color: var(--color-muted); }
+/* Motivo (por que se retira) separado del estado (Badge, en donde va el
+   ciclo): antes eran dos <span> identicos y se confundian visualmente. */
+.etiquetas { display: flex; align-items: center; gap: 10px; flex: none; }
+.motivo { font-size: 12.5px; font-weight: 600; color: var(--color-muted); text-transform: uppercase; letter-spacing: .02em; }
+.body { padding: 10px 13px; }
+.desc { font-size: 13.5px; margin: 0 0 10px; color: var(--color-text); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px 16px; margin-bottom: 10px; }
+.gridLabel { font-size: 11px; color: var(--color-muted-2); text-transform: uppercase; letter-spacing: .02em; margin-bottom: 2px; }
+.gridValue { font-size: 13.5px; }
+.pending { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); border-radius: 8px; font-size: 13px; }
+.reverted { padding: 8px 12px; background: var(--color-neutral-bg); border: 1px solid var(--color-neutral-border); border-radius: 8px; font-size: 12.5px; color: var(--color-neutral-text); }

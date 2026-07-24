@@ -7,7 +7,8 @@ import styles from './RevertModal.module.css'
 export function RevertModal({ onClose }) {
   const { id } = useParams()
   const { data: bajas } = useBajas()
-  const baja = (bajas || []).find((b) => b.id === id)
+  // El id del backend es numérico; el de la URL es string. Comparar como texto.
+  const baja = (bajas || []).find((b) => String(b.id) === id)
   const revertir = useRevertirBaja()
   const { showToast } = useToast()
 

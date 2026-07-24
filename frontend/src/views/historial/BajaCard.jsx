@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { Badge } from '../../components/Badge'
 import { fmtDate, fmtRemaining } from '../../lib/date'
 import styles from './BajaCard.module.css'
 
@@ -11,24 +12,27 @@ export function BajaCard({ baja, now }) {
   return (
     <div className={styles.card}>
       <div className={styles.head}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
-          <div className="mono">{baja.id}</div>
+        <div className={styles.identidad}>
+          <div className={`mono ${styles.id}`}>{baja.id}</div>
           <div>
-            <div style={{ fontWeight: 600 }}>{baja.activoNombre}</div>
-            <div className="mono">{baja.activoNum}</div>
+            <div className={styles.nombre}>{baja.activoNombre}</div>
+            <div className={`mono ${styles.num}`}>{baja.activoNum}</div>
           </div>
         </div>
-        <div>
-          <span>{baja.motivo}</span>
-          <span style={{ marginLeft: 8 }}>{estadoLabel}</span>
+        {/* Motivo como texto plano (por qué se retira) vs. estado como badge
+            de color (en qué punto del ciclo va): antes ambos eran <span>
+            idénticos y se confundían. */}
+        <div className={styles.etiquetas}>
+          <span className={styles.motivo}>{baja.motivo}</span>
+          <Badge label={estadoLabel} />
         </div>
       </div>
       <div className={styles.body}>
-        <p>{baja.desc}</p>
+        <p className={styles.desc}>{baja.desc}</p>
         <div className={styles.grid}>
-          <div><div>Fecha efectiva</div><div className="mono">{fmtDate(baja.fechaEfectiva)}</div></div>
-          <div><div>Registrada</div><div className="mono">{fmtDate(baja.fechaRegistro)}</div></div>
-          <div><div>Responsable</div><div>{baja.user}</div></div>
+          <div><div className={styles.gridLabel}>Fecha efectiva</div><div className={`mono ${styles.gridValue}`}>{fmtDate(baja.fechaEfectiva)}</div></div>
+          <div><div className={styles.gridLabel}>Registrada</div><div className={`mono ${styles.gridValue}`}>{fmtDate(baja.fechaRegistro)}</div></div>
+          <div><div className={styles.gridLabel}>Responsable</div><div className={styles.gridValue}>{baja.user}</div></div>
         </div>
         {isPendiente && (
           <div className={styles.pending}>

@@ -11,7 +11,9 @@ const MOTIVOS = ['Venta', 'Desecho u obsolescencia', 'Robo o pérdida']
 
 export function RetiroModal({ onClose }) {
   const { data: activos } = useActivos()
-  const [form, setForm] = useState({ activoNum: '', motivo: '', desc: '' })
+  const [form, setForm] = useState({
+    activoNum: '', motivo: '', desc: '', fechaEfectiva: '', archivo: null,
+  })
   const [errors, setErrors] = useState({})
   const registrar = useRegistrarBaja()
   const { showToast } = useToast()
@@ -55,6 +57,12 @@ export function RetiroModal({ onClose }) {
         </FormField>
         <FormField label="Descripción" error={errors.desc}>
           <textarea aria-label="Descripción" value={form.desc} onChange={(e) => handleChange('desc', e.target.value)} rows={3} />
+        </FormField>
+        <FormField label="Fecha efectiva" error={errors.fechaEfectiva}>
+          <input type="date" aria-label="Fecha efectiva" value={form.fechaEfectiva} onChange={(e) => handleChange('fechaEfectiva', e.target.value)} />
+        </FormField>
+        <FormField label="Archivo de respaldo" error={errors.archivo}>
+          <input type="file" aria-label="Archivo de respaldo" onChange={(e) => handleChange('archivo', e.target.files[0] || null)} />
         </FormField>
         <div className={styles.actions}>
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
