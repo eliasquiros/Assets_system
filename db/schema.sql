@@ -97,22 +97,28 @@ CREATE TABLE usuario (
     id              BIGSERIAL       PRIMARY KEY,
     username        VARCHAR(150)    NOT NULL,
     password_hash   VARCHAR(255)    NOT NULL,
+    correo          VARCHAR(255),
     activo          BOOLEAN         NOT NULL DEFAULT TRUE,
     fecha_creacion  TIMESTAMPTZ     NOT NULL DEFAULT now(),
     ultimo_acceso   TIMESTAMPTZ,
 
-    CONSTRAINT uq_usuario_username UNIQUE (username)
+    CONSTRAINT uq_usuario_username UNIQUE (username),
+    CONSTRAINT uq_usuario_correo UNIQUE (correo)
 );
 
 COMMENT ON TABLE usuario IS
     'Usuarios con acceso al sistema, aislados dentro del schema de su propia '
     'empresa (DA03). Sostiene RF-006 (inicio de sesion) y RS-001 (contrasenas '
     'nunca en texto plano: password_hash guarda el resultado de un hash '
-    'seguro, nunca la contrasena en si). No guarda nombre completo ni correo '
-    'por decision explicita de producto: el MVP no los necesita.';
+    'seguro, nunca la contrasena en si). No guarda nombre completo por '
+    'decision explicita de producto: el MVP no lo necesita.';
 
 COMMENT ON COLUMN usuario.password_hash IS
     'Resultado de un hash seguro (ej. PBKDF2/Argon2), nunca la contrasena en texto plano (RS-001).';
+
+COMMENT ON COLUMN usuario.correo IS
+    'Opcional. Guardado para una futura recuperacion de contrasena y/o 2FA; '
+    'todavia sin ningun flujo asociado (sin envio de correo, sin verificacion).';
 
 
 -- ---------------------------------------------------------------------
