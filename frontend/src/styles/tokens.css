@@ -1,25 +1,107 @@
+/* =============================================================================
+   Design tokens — "Quiet Authority"
+   -----------------------------------------------------------------------------
+   Sistema contable: la interfaz debe leerse segura, calmada y precisa. Por eso
+   la paleta es casi toda neutra (piedra cálida, no gris azulado frío) y el color
+   se reserva para tres cosas: estado, foco y el enlace/tab activo. La acción
+   primaria es tinta casi negra, no un azul saturado — pesa más y no compite con
+   los badges de estado.
+
+   Los tokens `--color-*` del final son alias de compatibilidad: existían antes
+   de este rediseño y varios módulos aún los usan. No agregar nuevos usos.
+   ========================================================================== */
+
 :root {
-  --color-bg: #EEF1F6;
-  --color-text: #0B2545;
-  --color-navy: #13315C;
-  --color-navy-dark: #0B2545;
-  --color-blue: #2D6CB5;
-  --color-border: #DDE3EC;
-  --color-border-light: #E7ECF3;
-  --color-muted: #5D6E86;
-  --color-muted-2: #8493A8;
-  --color-success-bg: #E4F1E9;
-  --color-success-text: #1F6B4A;
-  --color-success-border: #C4E0D0;
-  --color-warning-bg: #FBEBCF;
-  --color-warning-text: #8A5A12;
-  --color-warning-border: #F0D9AE;
-  --color-error-bg: #FBECEC;
-  --color-error-text: #8F3A38;
-  --color-error-border: #EAC9C9;
-  --color-neutral-bg: #EAEEF4;
-  --color-neutral-text: #41506A;
-  --color-neutral-border: #D5DCE7;
-  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
+  color-scheme: light;
+
+  /* ---- Neutros ---------------------------------------------------------- */
+  --canvas: #F4F4F2;
+  --canvas-2: #ECECE9;
+  --surface: #FFFFFF;
+  --surface-sunk: #FAFAF8;
+
+  /* Tinta. Todos cumplen AA (>=4.5:1) sobre --surface. */
+  --ink: #16181C;      /* titulos, texto principal   ~17:1 */
+  --ink-2: #383D45;    /* texto secundario           ~10:1 */
+  --ink-3: #5A5F68;    /* apoyo / muted              ~6.5:1 */
+  --ink-4: #74797F;    /* microetiquetas             ~4.6:1 */
+
+  --line: #E4E3DF;
+  --line-soft: #EFEEEB;
+  --line-strong: #D2D1CC;
+
+  /* ---- Acento: indigo profundo. Foco, enlaces, tab activo. -------------- */
+  --accent: #2F4C86;
+  --accent-hover: #263E6E;
+  --accent-press: #1E3358;
+  --accent-soft: #EEF2FA;
+  --accent-line: #D2DCEF;
+  --accent-ink: #FFFFFF;
+
+  /* ---- Estado: apagados a proposito, nunca fosforescentes --------------- */
+  --ok-fg: #1B5E43;   --ok-bg: #E8F2EC;   --ok-line: #C6DFD1;
+  --warn-fg: #7C5310; --warn-bg: #FAF0DB; --warn-line: #EEDDB6;
+  --err-fg: #8B3A34;  --err-bg: #FBEDEB;  --err-line: #EFD2CD;
+  --mute-fg: #4C515A; --mute-bg: #EFEEEB; --mute-line: #E0DFDA;
+
+  /* ---- Tipografia ------------------------------------------------------- */
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', 'Cascadia Mono', monospace;
+
+  /* ---- Radios ----------------------------------------------------------- */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+  --r-full: 999px;
+
+  /* ---- Elevacion: sombras suaves en capas, no bordes duros -------------- */
+  --sh-1: 0 1px 2px rgba(22, 24, 28, .05), 0 1px 1px rgba(22, 24, 28, .04);
+  --sh-2: 0 1px 2px rgba(22, 24, 28, .05), 0 4px 10px -2px rgba(22, 24, 28, .07);
+  --sh-3: 0 2px 4px rgba(22, 24, 28, .05), 0 12px 28px -6px rgba(22, 24, 28, .12);
+  --sh-4: 0 8px 20px -4px rgba(22, 24, 28, .14), 0 28px 64px -12px rgba(22, 24, 28, .22);
+
+  /* Relieve interno del boton primario: la linea clara de arriba es lo que
+     le da el volumen sutil sin recurrir a un degradado visible. */
+  --sh-raise: inset 0 1px 0 rgba(255, 255, 255, .10), 0 1px 2px rgba(22, 24, 28, .28);
+
+  /* ---- Foco ------------------------------------------------------------- */
+  --ring: 0 0 0 3px rgba(47, 76, 134, .18);
+  --ring-err: 0 0 0 3px rgba(139, 58, 52, .16);
+
+  /* ---- Movimiento ------------------------------------------------------- */
+  --ease: cubic-bezier(.2, .7, .3, 1);
+  --dur-1: 120ms;
+  --dur-2: 180ms;
+  --dur-3: 260ms;
+
+  /* ---- Medidas del armazon --------------------------------------------- */
+  --h-header: 60px;
+  --h-nav: 48px;
+  --h-control: 40px;
+  --pad-x: 24px;
+
+  /* ---- Alias de compatibilidad (no usar en codigo nuevo) ---------------- */
+  --color-bg: var(--canvas);
+  --color-text: var(--ink);
+  --color-navy: var(--ink);
+  --color-navy-dark: #101216;
+  --color-blue: var(--accent);
+  --color-border: var(--line);
+  --color-border-light: var(--line-soft);
+  --color-muted: var(--ink-3);
+  --color-muted-2: var(--ink-4);
+  --color-success-bg: var(--ok-bg);
+  --color-success-text: var(--ok-fg);
+  --color-success-border: var(--ok-line);
+  --color-warning-bg: var(--warn-bg);
+  --color-warning-text: var(--warn-fg);
+  --color-warning-border: var(--warn-line);
+  --color-error-bg: var(--err-bg);
+  --color-error-text: var(--err-fg);
+  --color-error-border: var(--err-line);
+  --color-neutral-bg: var(--mute-bg);
+  --color-neutral-text: var(--mute-fg);
+  --color-neutral-border: var(--mute-line);
 }
