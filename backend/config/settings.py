@@ -205,14 +205,18 @@ AUTH_COOKIE_SECURE = not DEBUG          # en dev (DEBUG=True) permite http://dem
 AUTH_COOKIE_REFRESH_PATH = '/api/auth'  # el refresh solo se envia a los endpoints de auth
 
 # CSRF: el token DEBE ser legible por JS para reenviarlo en X-CSRFToken.
-# NOTA (pendiente prod split-domain): con frontend y backend en dominios
-# distintos, el JS de *.sistema.com NO puede leer la cookie csrftoken de
-# api.sistema.com (lectura cross-origin bloqueada). Antes del deploy hay que
-# devolver el token CSRF en el body del login/refresh y guardarlo en memoria.
-# En dev (mismo origen via proxy) el double-submit actual funciona tal cual.
+# En prod split-domain (frontend en *.sistema.com, backend en api.sistema.com)
+# el JS del frontend no podria leer una cookie host-only de api.sistema.com. Se
+# resuelve compartiendo el csrftoken como cookie del dominio PADRE
+# (DJANGO_CSRF_COOKIE_DOMAIN=.sistema.com): asi el JS de cualquier subdominio la
+# lee y el navegador la envia a api.sistema.com. Las cookies del JWT (access/
+# refresh) siguen host-only de la API y NO se comparten con los subdominios,
+# que es donde importa el aislamiento (RS-002). En dev (mismo origen via proxy)
+# se deja sin dominio y con SameSite=Lax.
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = os.environ.get('DJANGO_AUTH_COOKIE_SAMESITE', 'Lax')
 CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_DOMAIN = os.environ.get('DJANGO_CSRF_COOKIE_DOMAIN') or None
 # En produccion, usar un comodin para todos los subdominios de empresas
 # (ej. https://*.sistema.com) — Django soporta el prefijo '*.' desde la
 # version 4.0. Una lista de origenes literales no escala a las empresas
