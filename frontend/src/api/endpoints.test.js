@@ -97,14 +97,16 @@ describe('api/reportes', () => {
 })
 
 describe('api/auth', () => {
-  it('login POSTs credentials to /auth/login/', async () => {
+  it('login POSTs credentials + empresa hint to /auth/login/', async () => {
     apiFetch.mockResolvedValue({ username: 'mrivera', empresa: 'Comercial Rivera S.A.' })
 
     await login('mrivera', 'secreta123')
 
+    // El slug de empresa se deriva del hostname; en jsdom (localhost) es vacío.
+    // La derivación real por subdominio se cubre en lib/apiBase.test.js.
     expect(apiFetch).toHaveBeenCalledWith('/auth/login/', {
       method: 'POST',
-      body: { usuario: 'mrivera', password: 'secreta123' },
+      body: { usuario: 'mrivera', password: 'secreta123', empresa: '' },
     })
   })
 })
