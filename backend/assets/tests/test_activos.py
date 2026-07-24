@@ -103,6 +103,13 @@ class ActivosApiTest(TenantTestCase):
         self.assertIsInstance(resp.data['categoriaId'], int)
         self.assertIn('localizacionId', resp.data)
 
+    def test_detalle_incluye_detalle_adicional_y_no_fecha_registro(self):
+        resp = self.client.get('/api/activos/AF-0001/', HTTP_HOST=self.host)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('detalle', resp.data)
+        self.assertIsNone(resp.data['detalle'])
+        self.assertNotIn('fechaRegistro', resp.data)
+
     def test_detalle_inexistente_da_404(self):
         resp = self.client.get('/api/activos/AF-9999/', HTTP_HOST=self.host)
         self.assertEqual(resp.status_code, 404)
@@ -244,6 +251,20 @@ class RegistrarActivoApiTest(TenantTestCase):
             activo = Activo.objects.get(numero_activo='SOF-0001')
             self.assertIsNone(activo.serie)
 
+    def test_detalle_es_opcional_y_se_guarda_cuando_se_envia(self):
+        resp = self._post('/api/activos/crear/', self._payload(
+            detalle='Oficina de gerencia, a cargo de Juan Pérez'))
+        self.assertEqual(resp.status_code, 201)
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='SOF-0001')
+            self.assertEqual(activo.detalle, 'Oficina de gerencia, a cargo de Juan Pérez')
+
+    def test_detalle_omitido_o_en_blanco_se_guarda_como_null(self):
+        resp = self._post('/api/activos/crear/', self._payload())
+        self.assertEqual(resp.status_code, 201)
+        with tenant_context(self.tenant):
+            self.assertIsNone(Activo.objects.get(numero_activo='SOF-0001').detalle)
+
     def test_modelo_debe_pertenecer_a_la_marca(self):
         resp = self._post('/api/activos/crear/', self._payload(marca=self.marca_otra.id))
         self.assertEqual(resp.status_code, 400)
@@ -343,6 +364,14 @@ class EditarActivoApiTest(TenantTestCase):
             activo = Activo.objects.get(numero_activo='COM-0001')
             self.assertEqual(activo.nombre, 'Laptop nueva')
             self.assertEqual(activo.version, 2)
+            self.assertEqual(activo.movimientos.count(), 0)
+
+    def test_editar_detalle_se_guarda_y_no_genera_movimiento(self):
+        resp = self._patch(detalle='Bodega central, estante 4')
+        self.assertEqual(resp.status_code, 200)
+        with tenant_context(self.tenant):
+            activo = Activo.objects.get(numero_activo='COM-0001')
+            self.assertEqual(activo.detalle, 'Bodega central, estante 4')
             self.assertEqual(activo.movimientos.count(), 0)
 
     def test_version_obsoleta_da_409_sin_persistir(self):
