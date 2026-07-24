@@ -5,7 +5,14 @@ export function listarBajas({ token } = {}) {
 }
 
 export function registrarBaja(datos, { token } = {}) {
-  return apiFetch('/bajas/', { method: 'POST', body: datos, token })
+  // El respaldo (RN-002.2) es un archivo: se envía como multipart, no JSON.
+  const fd = new FormData()
+  fd.append('activoNum', datos.activoNum)
+  fd.append('motivo', datos.motivo)
+  fd.append('desc', datos.desc)
+  fd.append('fechaEfectiva', datos.fechaEfectiva)
+  fd.append('archivo', datos.archivo)
+  return apiFetch('/bajas/', { method: 'POST', body: fd, token })
 }
 
 export function revertirBaja(id, { token } = {}) {

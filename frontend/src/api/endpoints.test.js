@@ -56,11 +56,21 @@ describe('api/bajas', () => {
     expect(apiFetch).toHaveBeenCalledWith('/bajas/', { token: 't1' })
   })
 
-  it('registrarBaja POSTs the form data', async () => {
-    const datos = { activoNum: 'AF-0001', motivo: 'Venta', desc: 'detalle' }
+  it('registrarBaja POSTs the form data as multipart including the file', async () => {
+    const archivo = new File(['x'], 'comprobante.pdf', { type: 'application/pdf' })
+    const datos = { activoNum: 'AF-0001', motivo: 'Venta', desc: 'detalle', fechaEfectiva: '2026-07-09', archivo }
     apiFetch.mockResolvedValue({ id: 'BJ-2026-019' })
     await registrarBaja(datos, { token: 't1' })
-    expect(apiFetch).toHaveBeenCalledWith('/bajas/', { method: 'POST', body: datos, token: 't1' })
+    const [path, opts] = apiFetch.mock.calls[0]
+    expect(path).toBe('/bajas/')
+    expect(opts.method).toBe('POST')
+    expect(opts.token).toBe('t1')
+    expect(opts.body).toBeInstanceOf(FormData)
+    expect(opts.body.get('activoNum')).toBe('AF-0001')
+    expect(opts.body.get('motivo')).toBe('Venta')
+    expect(opts.body.get('desc')).toBe('detalle')
+    expect(opts.body.get('fechaEfectiva')).toBe('2026-07-09')
+    expect(opts.body.get('archivo')).toBe(archivo)
   })
 
   it('revertirBaja POSTs to /bajas/{id}/revertir/', async () => {

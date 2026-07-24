@@ -41,7 +41,14 @@ function refreshSession() {
 }
 
 export async function apiFetch(path, { method = 'GET', body, headers, _retry = true } = {}) {
-  const finalHeaders = { 'Content-Type': 'application/json', ...(headers || {}) }
+  // Con FormData (subida de archivos, ej. respaldo de una baja) NO fijamos
+  // Content-Type: el navegador pone el multipart con su boundary, y el cuerpo
+  // se envía tal cual en vez de serializarse a JSON.
+  const esFormData = typeof FormData !== 'undefined' && body instanceof FormData
+  const finalHeaders = {
+    ...(esFormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(headers || {}),
+  }
 
   // En métodos que cambian estado, reenviamos el token CSRF legible. El JWT
   // viaja solo en cookies httpOnly (no accesibles desde aquí) vía credentials.
@@ -56,7 +63,7 @@ export async function apiFetch(path, { method = 'GET', body, headers, _retry = t
       method,
       headers: finalHeaders,
       credentials: 'include',
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body !== undefined ? (esFormData ? body : JSON.stringify(body)) : undefined,
     })
   } catch {
     throw new ApiError('No se pudo conectar con el servidor', 0)
