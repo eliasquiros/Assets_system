@@ -1,5 +1,38 @@
-.field { display: flex; flex-direction: column; gap: 6px; }
-.label { font-size: 12px; font-weight: 600; color: var(--color-neutral-text); }
-.required { color: #C0504D; }
-.error { font-size: 11px; color: #C0504D; font-weight: 500; }
-.hint { font-size: 11px; color: var(--color-muted-2); }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+.label {
+  font-size: 12px; font-weight: 500; letter-spacing: -.005em;
+  color: var(--ink-2);
+}
+
+.required { color: var(--err-fg); font-weight: 600; }
+
+/* El error se anuncia con un punto rojo antes del texto: se distingue del hint
+   de un vistazo, sin depender solo del color. */
+.error {
+  display: flex; align-items: flex-start; gap: 6px;
+  font-size: 11.5px; line-height: 1.45; color: var(--err-fg); font-weight: 500;
+  animation: errIn var(--dur-2) var(--ease);
+}
+.error::before {
+  content: ''; flex: none;
+  width: 5px; height: 5px; margin-top: 6px;
+  border-radius: 50%; background: currentColor;
+}
+
+.hint { font-size: 11.5px; line-height: 1.45; color: var(--ink-4); }
+
+/* El campo con error se marca tambien en el borde del control. */
+.field:has(.error) input,
+.field:has(.error) select,
+.field:has(.error) textarea {
+  border-color: var(--err-line);
+}
+.field:has(.error) input:focus,
+.field:has(.error) select:focus,
+.field:has(.error) textarea:focus {
+  border-color: var(--err-fg);
+  box-shadow: var(--ring-err);
+}
+
+@keyframes errIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: none; } }
