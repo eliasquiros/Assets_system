@@ -17,7 +17,12 @@ class AuthFlowTest(TenantTestCase):
         # Usuario dentro del tenant de prueba (self.tenant lo crea TenantTestCase).
         with tenant_context(cls.tenant):
             Usuario.objects.create_user(username='ana', password='secreta123')
-        cls.host = cls.tenant.get_primary_domain().domain
+        # Slug (hint) con el que el frontend pide login; el backend resuelve el
+        # schema a partir de el. La empresa real de cada request sale del token.
+        cls.slug = 'testco'
+        with schema_context(get_public_schema_name()):
+            cls.tenant.subdominio = cls.slug
+            cls.tenant.save(update_fields=['subdominio'])
 
     def setUp(self):
         # El throttle usa LocMemCache por IP; sin limpiar, los intentos de un
@@ -25,10 +30,14 @@ class AuthFlowTest(TenantTestCase):
         cache.clear()
         self.client = APIClient()
 
-    def _login(self, usuario='ana', password='secreta123'):
+    def _login(self, usuario='ana', password='secreta123', empresa=None):
+        # La empresa viaja como hint en el body (derivado del subdominio), no
+        # por Host: la topologia es de API unica.
         return self.client.post(
-            '/api/auth/login/', {'usuario': usuario, 'password': password},
-            format='json', HTTP_HOST=self.host,
+            '/api/auth/login/',
+            {'usuario': usuario, 'password': password,
+             'empresa': self.slug if empresa is None else empresa},
+            format='json',
         )
 
     def test_login_ok_setea_cookies_httponly_y_no_expone_token(self):
@@ -55,10 +64,11 @@ class AuthFlowTest(TenantTestCase):
     def test_endpoint_protegido_rechaza_sin_cookie_y_acepta_con_ella(self):
         # Sin cookie -> 401.
         anon = APIClient()
-        self.assertEqual(anon.get('/api/auth/me/', HTTP_HOST=self.host).status_code, 401)
-        # Con cookie de un login previo -> 200.
+        self.assertEqual(anon.get('/api/auth/me/').status_code, 401)
+        # Con cookie de un login previo -> 200. La empresa se resuelve del token,
+        # sin Host.
         self._login()
-        me = self.client.get('/api/auth/me/', HTTP_HOST=self.host)
+        me = self.client.get('/api/auth/me/')
         self.assertEqual(me.status_code, 200)
         self.assertEqual(me.data['username'], 'ana')
 
@@ -79,67 +89,66 @@ class AuthFlowTest(TenantTestCase):
         self._login()
         old_refresh = self.client.cookies['refresh'].value
 
-        r1 = self.client.post('/api/auth/refresh/', HTTP_HOST=self.host)
+        r1 = self.client.post('/api/auth/refresh/')
         self.assertEqual(r1.status_code, 200)
         new_refresh = self.client.cookies['refresh'].value
         self.assertNotEqual(old_refresh, new_refresh)
 
         # El refresh viejo, ya rotado, no debe volver a servir (RS-002/DA08:
-        # limita la ventana de un token robado).
+        # limita la ventana de un token robado). La blacklist vive en el schema
+        # de la empresa del claim, que el refresh activa antes de chequearla.
         self.client.cookies['refresh'] = old_refresh
-        r2 = self.client.post('/api/auth/refresh/', HTTP_HOST=self.host)
+        r2 = self.client.post('/api/auth/refresh/')
         self.assertEqual(r2.status_code, 401)
 
     def test_logout_invalida_el_refresh_token(self):
         self._login()
         refresh_value = self.client.cookies['refresh'].value
 
-        self.client.post('/api/auth/logout/', HTTP_HOST=self.host)
+        self.client.post('/api/auth/logout/')
 
         self.client.cookies['refresh'] = refresh_value
-        r = self.client.post('/api/auth/refresh/', HTTP_HOST=self.host)
+        r = self.client.post('/api/auth/refresh/')
         self.assertEqual(r.status_code, 401)
 
 
 class AislamientoEntreEmpresasTest(TenantTestCase):
-    """RS-002: un usuario de la empresa A no puede entrar por el subdominio de B."""
+    """RS-002: con el hint de otra empresa, un usuario que solo existe en la
+    suya no autentica (el hint no crea acceso; se requieren credenciales
+    validas en el schema apuntado)."""
 
-    def test_usuario_de_A_no_autentica_en_subdominio_de_B(self):
+    def test_usuario_de_A_con_hint_de_B_no_autentica(self):
         # Segunda empresa, independiente del tenant de prueba (empresa A).
         # TenantTestCase deja la conexion fijada en el schema del tenant de
-        # prueba (self.tenant); django-tenants solo permite crear un tenant
-        # nuevo con la conexion en el schema publico, asi que se cambia
-        # explicitamente antes de crear empresa_b y su dominio.
+        # prueba; django-tenants solo permite crear un tenant nuevo con la
+        # conexion en el schema publico, asi que se cambia explicitamente.
         with schema_context(get_public_schema_name()):
-            empresa_b = Empresa(schema_name='empresa_b', nombre='B', activa=True)
+            empresa_b = Empresa(schema_name='empresa_b', nombre='B', activa=True,
+                                subdominio='bco')
             empresa_b.save()
             Domain.objects.create(domain='b.localhost', tenant=empresa_b, is_primary=True)
         with tenant_context(self.tenant):
             Usuario.objects.create_user(username='soloA', password='secreta123')
 
         client = APIClient()
-        # 'soloA' existe en A, pero pedimos login por el Host de B -> no lo encuentra.
+        # 'soloA' existe en A, pero el hint apunta a B -> no lo encuentra -> 401.
         resp = client.post(
-            '/api/auth/login/', {'usuario': 'soloA', 'password': 'secreta123'},
-            format='json', HTTP_HOST='b.localhost',
+            '/api/auth/login/',
+            {'usuario': 'soloA', 'password': 'secreta123', 'empresa': 'bco'},
+            format='json',
         )
         self.assertEqual(resp.status_code, 401)
         # No se llama a empresa_b.delete(force_drop=True) aqui: TenantTestCase
         # corre cada test dentro de la transaccion atomica de TestCase, y
         # Postgres soporta DDL transaccional, asi que el CREATE SCHEMA de
-        # empresa_b se revierte solo al hacer rollback en el teardown. Intentar
-        # el DROP SCHEMA CASCADE en la misma transaccion falla con
-        # "cannot DROP TABLE ... because it has pending trigger events" (los
-        # triggers diferidos de FK de las migraciones de auth/contenttypes
-        # corridas al crear el schema siguen pendientes hasta el commit).
+        # empresa_b se revierte solo al hacer rollback en el teardown.
 
 
 class TokenTenantClaimTest(TenantTestCase):
-    """RS-002: un access token emitido para una empresa no debe autenticar en
-    otra, aunque la firma sea valida (el SECRET_KEY es compartido) y exista un
-    usuario con el mismo id en la otra empresa. Sin un claim de tenant en el
-    JWT, un token de A (user_id=1) reenviado al Host de B autenticaria como el
-    usuario 1 de B — el puente entre empresas que la Opcion B debe cerrar."""
+    """RS-002 (API unica): la empresa de cada request sale del claim FIRMADO del
+    token, NUNCA de un dato de la peticion (hint, Host o headers). Un token de A
+    (user_id=1) no opera como B aunque exista un usuario con el mismo id en B y
+    el atacante intente indicar B — el puente entre empresas que hay que cerrar."""
 
     @classmethod
     def setUpClass(cls):
@@ -147,20 +156,24 @@ class TokenTenantClaimTest(TenantTestCase):
         # Empresa A = tenant de prueba. Un solo usuario -> id=1.
         with tenant_context(cls.tenant):
             cls.user_a = Usuario.objects.create_user(username='userA', password='secreta123')
-        cls.host_a = cls.tenant.get_primary_domain().domain
+        cls.slug_a = 'aco'
+        with schema_context(get_public_schema_name()):
+            cls.tenant.nombre = 'Empresa A'
+            cls.tenant.subdominio = cls.slug_a
+            cls.tenant.save(update_fields=['nombre', 'subdominio'])
 
     def setUp(self):
         cache.clear()
 
     def _crear_empresa_b_con_id_colisionado(self):
         """Empresa B independiente con un usuario que colisiona en id con el de
-        A (ambos =1). Se crea dentro del test (no en setUpClass) por la misma
-        razon que AislamientoEntreEmpresasTest: el CREATE SCHEMA se revierte con
-        el rollback de la transaccion atomica de cada test. Sin la colision de
-        id el test no probaria nada: el rechazo vendria de 'usuario inexistente'
-        y no de la verificacion de empresa."""
+        A (ambos =1). Se crea dentro del test (no en setUpClass) porque el CREATE
+        SCHEMA se revierte con el rollback de la transaccion atomica de cada
+        test. Sin la colision de id el test no probaria nada: el rechazo vendria
+        de 'usuario inexistente' y no de la resolucion por claim."""
         with schema_context(get_public_schema_name()):
-            empresa_b = Empresa(schema_name='empresa_b_claim', nombre='B', activa=True)
+            empresa_b = Empresa(schema_name='empresa_b_claim', nombre='Empresa B',
+                                activa=True, subdominio='bco')
             empresa_b.save()
             Domain.objects.create(domain='b-claim.localhost', tenant=empresa_b, is_primary=True)
         with tenant_context(empresa_b):
@@ -170,31 +183,38 @@ class TokenTenantClaimTest(TenantTestCase):
     def _login_en_a(self):
         client = APIClient()
         resp = client.post(
-            '/api/auth/login/', {'usuario': 'userA', 'password': 'secreta123'},
-            format='json', HTTP_HOST=self.host_a,
+            '/api/auth/login/',
+            {'usuario': 'userA', 'password': 'secreta123', 'empresa': self.slug_a},
+            format='json',
         )
         self.assertEqual(resp.status_code, 200)
         return client
 
-    def test_access_de_A_no_autentica_en_el_host_de_B(self):
+    def test_el_token_resuelve_su_empresa_por_el_claim_no_por_la_peticion(self):
         self._crear_empresa_b_con_id_colisionado()
         client = self._login_en_a()
 
-        # La MISMA cookie de acceso, reenviada contra el Host de B, es rechazada.
+        # El atacante reenvia la cookie de A intentando indicar la empresa B por
+        # header y por Host. La empresa sale del claim (A): responde userA y la
+        # empresa A, no userB — pese a la colision de id.
         atacante = APIClient()
         atacante.cookies['access'] = client.cookies['access'].value
-        resp = atacante.get('/api/auth/me/', HTTP_HOST='b-claim.localhost')
-        self.assertEqual(resp.status_code, 401)
+        resp = atacante.get(
+            '/api/auth/me/', HTTP_X_EMPRESA='bco', HTTP_HOST='b-claim.localhost',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['username'], 'userA')
+        self.assertEqual(resp.data['empresa'], 'Empresa A')
 
-    def test_refresh_de_A_no_emite_sesion_en_el_host_de_B(self):
+    def test_login_con_hint_de_B_y_credenciales_de_A_no_cruza(self):
         self._crear_empresa_b_con_id_colisionado()
-        client = self._login_en_a()
-
-        # El refresh token de A, reenviado a /refresh/ por el Host de B, no debe
-        # emitir una sesion valida de B (mismo agujero, otra superficie).
-        atacante = APIClient()
-        atacante.cookies['refresh'] = client.cookies['refresh'].value
-        resp = atacante.post('/api/auth/refresh/', HTTP_HOST='b-claim.localhost')
+        # userA no existe en B: con hint=B, las credenciales de A no autentican.
+        client = APIClient()
+        resp = client.post(
+            '/api/auth/login/',
+            {'usuario': 'userA', 'password': 'secreta123', 'empresa': 'bco'},
+            format='json',
+        )
         self.assertEqual(resp.status_code, 401)
 
 
