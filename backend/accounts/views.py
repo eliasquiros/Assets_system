@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import connection
 from django.middleware.csrf import get_token
+from django.utils import timezone
 from django_tenants.utils import tenant_context
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
@@ -66,6 +67,13 @@ class LoginView(APIView):
                     {'detail': CREDENCIALES_INVALIDAS},
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
+            # Solo el login real (usuario+contrasena) cuenta como acceso: el
+            # refresh de token no pasa por aqui, asi que "ultimo acceso" no se
+            # confunde con la renovacion automatica de sesion. update_fields
+            # acota el UPDATE a esta sola columna (no reescribe password_hash
+            # ni nada mas de la fila).
+            user.last_login = timezone.now()
+            user.save(update_fields=['last_login'])
             refresh = crear_refresh(user)   # claim `tenant` = empresa.schema_name
             response = Response({'username': user.username, 'empresa': empresa.nombre})
             set_auth_cookies(response, refresh.access_token, refresh)
