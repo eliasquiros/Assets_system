@@ -121,7 +121,22 @@ describe('CrearActivoModal', () => {
     await userEvent.click(screen.getByText('Guardar activo'))
 
     expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({
-      marca: null, modelo: null, serie: null,
+      marca: null, modelo: null, serie: null, detalle: null,
+    }))
+  })
+
+  it('envía el detalle adicional cuando se completa', async () => {
+    render(<CrearActivoModal onClose={vi.fn()} />)
+    await llenarActivo()
+    await userEvent.type(
+      screen.getByPlaceholderText('Ej. Oficina de gerencia, a cargo de…'),
+      'Oficina de gerencia, a cargo de Juan Pérez',
+    )
+
+    await userEvent.click(screen.getByText('Guardar activo'))
+
+    expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({
+      detalle: 'Oficina de gerencia, a cargo de Juan Pérez',
     }))
   })
 

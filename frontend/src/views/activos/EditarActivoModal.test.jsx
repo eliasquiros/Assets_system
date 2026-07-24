@@ -16,6 +16,7 @@ const ACTIVO = {
   estado: 'Depreciando', area: 'Oficinas', tipo: 'Cómputo',
   fechaAdq: '2022-03-15', fechaUso: '2022-04-01', vidaUtil: 5,
   origen: 'Compra local', proveedor: 'Dell CR', serie: 'S1', modelo: '', marca: '', factura: 'F-1',
+  detalle: 'Oficina de gerencia, a cargo de Juan Pérez',
   version: 2, categoriaId: 1, localizacionId: 1, proveedorId: 1,
   marcaId: null, modeloId: null, origenId: 1,
 }
@@ -46,6 +47,7 @@ describe('EditarActivoModal', () => {
     renderModal()
     expect(screen.getByDisplayValue('Laptop Dell')).toBeInTheDocument()
     expect(screen.getByDisplayValue('850000')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Oficina de gerencia, a cargo de Juan Pérez')).toBeInTheDocument()
   })
 
   it('envía IDs de catálogo + version y no reenvía dep/libros/estado', async () => {
@@ -58,11 +60,26 @@ describe('EditarActivoModal', () => {
     await userEvent.click(screen.getByText('Guardar cambios'))
     const [{ num, datos }] = mutateAsync.mock.calls[0]
     expect(num).toBe('AF-0001')
-    expect(datos).toMatchObject({ nombre: 'Laptop Dell', version: 2, categoria: 1 })
+    expect(datos).toMatchObject({
+      nombre: 'Laptop Dell', version: 2, categoria: 1,
+      detalle: 'Oficina de gerencia, a cargo de Juan Pérez',
+    })
     expect(datos).not.toHaveProperty('libros')
     expect(datos).not.toHaveProperty('dep')
     expect(datos).not.toHaveProperty('estado')
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('permite vaciar el detalle adicional: se envía como null', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(ACTIVO)
+    useActivo.mockReturnValue({ data: ACTIVO })
+    useEditarActivo.mockReturnValue({ mutateAsync, isPending: false })
+    useToast.mockReturnValue({ showToast: vi.fn() })
+    renderModal()
+    await userEvent.clear(screen.getByDisplayValue('Oficina de gerencia, a cargo de Juan Pérez'))
+    await userEvent.click(screen.getByText('Guardar cambios'))
+    const [{ datos }] = mutateAsync.mock.calls[0]
+    expect(datos.detalle).toBeNull()
   })
 
   it('muestra el mensaje de conflicto (409) y no cierra', async () => {
