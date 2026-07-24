@@ -13,7 +13,8 @@ from rest_framework.exceptions import APIException
 
 from .depreciacion import calcular_depreciacion
 from .models import (
-    Activo, Categoria, Localizacion, Marca, Modelo, Movimiento, Origen, Proveedor,
+    Activo, Categoria, Localizacion, Marca, Modelo, Movimiento, Origen,
+    Proveedor, Retiro,
 )
 
 
@@ -28,10 +29,21 @@ class ActivoListSerializer(serializers.ModelSerializer):
     dep = serializers.FloatField(source='depreciacion_acumulada_actual')
     estado = serializers.CharField(source='get_estado_depreciacion_display')
     fechaAdq = serializers.DateField(source='fecha_adquisicion')
+    # "Pendiente de baja" no es un campo del activo: se deriva de la existencia
+    # de una baja PENDIENTE (RN-002.5/DA15). El listado lo anota en el queryset;
+    # el detalle (una sola fila) cae al conteo puntual.
+    pendienteBaja = serializers.SerializerMethodField()
 
     class Meta:
         model = Activo
-        fields = ['num', 'nombre', 'area', 'tipo', 'costo', 'libros', 'dep', 'estado', 'fechaAdq']
+        fields = ['num', 'nombre', 'area', 'tipo', 'costo', 'libros', 'dep',
+                  'estado', 'fechaAdq', 'pendienteBaja']
+
+    def get_pendienteBaja(self, obj):
+        anotado = getattr(obj, 'pendiente_baja', None)
+        if anotado is not None:
+            return anotado
+        return obj.retiros.filter(estado=Retiro.PENDIENTE).exists()
 
 
 class ActivoDetailSerializer(ActivoListSerializer):

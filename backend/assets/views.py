@@ -5,7 +5,7 @@ IsAuthenticated): no hay activos sin sesion. El aislamiento entre empresas lo
 da el schema fijado por TenantMainMiddleware antes de llegar aca (RS-002): la
 consulta corre siempre contra el schema del subdominio, nunca contra otro.
 """
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.shortcuts import get_object_or_404
 from rest_framework.generics import (
     CreateAPIView, ListAPIView, RetrieveUpdateAPIView,
@@ -13,7 +13,7 @@ from rest_framework.generics import (
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Activo, Categoria, Movimiento
+from .models import Activo, Categoria, Movimiento, Retiro
 from .serializers import (
     ActivoCreateSerializer, ActivoDetailSerializer, ActivoEditSerializer,
     ActivoListSerializer, MovimientoSerializer,
@@ -25,7 +25,15 @@ class ActivoListView(ListAPIView):
     serializer_class = ActivoListSerializer
 
     def get_queryset(self):
-        qs = Activo.objects.select_related('localizacion', 'categoria')
+        # Anota "pendiente de baja" (RN-002.5/DA15) con un Exists por activo para
+        # que el serializer no dispare una consulta por fila.
+        pendiente = Retiro.objects.filter(
+            activo=OuterRef('pk'), estado=Retiro.PENDIENTE,
+        )
+        qs = (
+            Activo.objects.select_related('localizacion', 'categoria')
+            .annotate(pendiente_baja=Exists(pendiente))
+        )
         params = self.request.query_params
         search = params.get('search')
         area = params.get('area')

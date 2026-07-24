@@ -4,8 +4,9 @@ from .catalogos import (
     CategoriaListCreate, LocalizacionListCreate, MarcaListCreate,
     ModeloListCreate, OrigenList, ProveedorListCreate,
 )
-from .internal import ActualizarDepreciacionView
+from .internal import ActualizarDepreciacionView, PromoverRetirosView
 from .reportes import ReporteAuditoriaView, ReporteFinancieroView
+from .retiros import RetiroListCreateView, RetiroRevertirView
 from .views import (
     ActivoCreateView, ActivoDetailView, ActivoListView,
     MovimientoListView, SiguienteNumeroView,
@@ -25,10 +26,15 @@ urlpatterns = [
     path('catalogos/modelos/', ModeloListCreate.as_view(), name='cat-modelos'),
     path('catalogos/origenes/', OrigenList.as_view(), name='cat-origenes'),
 
+    path('bajas/', RetiroListCreateView.as_view(), name='baja-list-create'),
+    path('bajas/<int:id>/revertir/', RetiroRevertirView.as_view(), name='baja-revertir'),
+
     path('reportes/auditoria/', ReporteAuditoriaView.as_view(), name='reporte-auditoria'),
     path('reportes/financiero/', ReporteFinancieroView.as_view(), name='reporte-financiero'),
 
-    # Tarea interna (pg_cron): recalculo mensual de depreciacion. No es de un
-    # tenant; protegida por token, no por sesion.
+    # Tareas internas (pg_cron): recalculo mensual de depreciacion y promocion de
+    # bajas vencidas a definitivas. No son de un tenant; protegidas por token, no
+    # por sesion.
     path('internal/depreciacion/', ActualizarDepreciacionView.as_view(), name='internal-depreciacion'),
+    path('internal/promover-retiros/', PromoverRetirosView.as_view(), name='internal-promover-retiros'),
 ]

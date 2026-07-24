@@ -12,7 +12,24 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .tareas import actualizar_todas_las_empresas
+from .tareas import (
+    actualizar_todas_las_empresas, promover_retiros_todas_las_empresas,
+)
+
+
+def _token_valido(request):
+    """Valida el token compartido en tiempo constante, fail-closed si no esta
+    configurado. Devuelve una Response de error o None si el token es valido."""
+    esperado = settings.INTERNAL_TASK_TOKEN
+    if not esperado:
+        return Response(
+            {'detail': 'Tarea interna no configurada.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    recibido = request.headers.get('X-Internal-Token', '')
+    if not hmac.compare_digest(recibido, esperado):
+        return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+    return None
 
 
 class ActualizarDepreciacionView(APIView):
@@ -23,14 +40,23 @@ class ActualizarDepreciacionView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        esperado = settings.INTERNAL_TASK_TOKEN
-        if not esperado:
-            return Response(
-                {'detail': 'Tarea interna no configurada.'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-        recibido = request.headers.get('X-Internal-Token', '')
-        if not hmac.compare_digest(recibido, esperado):
-            return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+        error = _token_valido(request)
+        if error is not None:
+            return error
         resumen = actualizar_todas_las_empresas()
         return Response({'actualizados': resumen})
+
+
+class PromoverRetirosView(APIView):
+    """POST /api/internal/promover-retiros/ — pasa a DEFINITIVA las bajas cuyo
+    periodo de gracia de 2 dias ya vencio y congela la depreciacion en su fecha
+    efectiva (RN-002.4/DA14). Lo dispara pg_cron a diario via pg_net."""
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        error = _token_valido(request)
+        if error is not None:
+            return error
+        resumen = promover_retiros_todas_las_empresas()
+        return Response({'promovidos': resumen})
