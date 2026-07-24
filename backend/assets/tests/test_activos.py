@@ -65,7 +65,8 @@ class ActivosApiTest(TenantTestCase):
         self.assertEqual(len(resp.data), 2)
         a = resp.data[0]
         self.assertEqual(set(a.keys()), {'num', 'nombre', 'area', 'tipo', 'costo',
-                                         'libros', 'dep', 'estado', 'fechaAdq'})
+                                         'libros', 'dep', 'estado', 'fechaAdq',
+                                         'pendienteBaja'})
         self.assertEqual(a['num'], 'AF-0001')
         self.assertEqual(a['area'], 'Oficinas Administrativas')
         self.assertEqual(a['tipo'], 'Equipo de cómputo')
