@@ -276,10 +276,16 @@ def _cat_label(cat):
 
 def _agrupar_por_categoria(corte):
     """Activos vigentes al corte, agrupados por categoria con dep/libros/estado
-    recalculados a esa fecha y los subtotales de cada categoria."""
+    recalculados a esa fecha y los subtotales de cada categoria.
+
+    Excluye los activos dados de baja de forma DEFINITIVA cuya fecha efectiva de
+    baja es anterior o igual al corte: el reporte financiero refleja solo activos
+    vigentes, no los ya retirados (RF-005). Las bajas aun PENDIENTES no se
+    excluyen: el activo sigue vigente hasta que la baja se vuelve definitiva."""
     activos = (
         Activo.objects
         .filter(fecha_inicio__lte=corte)
+        .exclude(retiros__estado='DEFINITIVA', retiros__fecha_efectiva__lte=corte)
         .select_related('categoria')
         .order_by('categoria__nombre', 'numero_activo')
     )

@@ -158,6 +158,13 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Archivos subidos por el usuario (por ahora: comprobantes de respaldo de las
+# bajas, RN-002.2). MEDIA_ROOT es un directorio privado local: NO se expone
+# MEDIA_URL, asi que estos archivos no se sirven publicamente. El almacenamiento
+# privado en la nube y la descarga con enlace temporal firmado (RS-005) quedan
+# pendientes.
+MEDIA_ROOT = os.environ.get('DJANGO_MEDIA_ROOT', str(BASE_DIR / 'media_privado'))
+
 
 # --- API / autenticacion ---
 REST_FRAMEWORK = {
