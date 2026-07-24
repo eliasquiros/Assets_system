@@ -22,6 +22,7 @@ function formDesde(a) {
     vidaUtil: String(a.vidaUtil ?? ''),
     serie: a.serie ?? '',
     factura: a.factura ?? '',
+    detalle: a.detalle ?? '',
     categoria: a.categoriaId ? String(a.categoriaId) : '',
     localizacion: a.localizacionId ? String(a.localizacionId) : '',
     proveedor: a.proveedorId ? String(a.proveedorId) : '',
@@ -63,6 +64,7 @@ export function EditarActivoModal({ onClose }) {
         nombre: form.nombre.trim(), costo: parseMonto(form.costo),
         fechaAdq: form.fechaAdq, fechaUso: form.fechaUso, vidaUtil: Number(form.vidaUtil),
         serie: form.serie.trim() || null, factura: form.factura.trim(),
+        detalle: form.detalle.trim() || null,
         categoria: Number(form.categoria), localizacion: Number(form.localizacion),
         proveedor: Number(form.proveedor), marca: form.marca ? Number(form.marca) : null,
         modelo: form.modelo ? Number(form.modelo) : null, origen: Number(form.origen),
@@ -132,6 +134,12 @@ export function EditarActivoModal({ onClose }) {
           </FormField>
           <FormField label="N.º de factura" error={errors.factura}>
             <input type="text" value={form.factura} onChange={(e) => set('factura')(e.target.value)} />
+          </FormField>
+          <FormField label="Detalle adicional" error={errors.detalle} required={false}
+            hint="Opcional. Quién lo tiene o dónde está exactamente, si aplica."
+            className={styles.fieldFull}>
+            <textarea value={form.detalle} placeholder="Ej. Oficina de gerencia, a cargo de…"
+              rows={3} onChange={(e) => set('detalle')(e.target.value)} />
           </FormField>
           <FormField label="Motivo del cambio" required={false}
             hint="Opcional. Queda registrado en el historial del activo.">

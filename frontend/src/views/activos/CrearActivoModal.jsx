@@ -12,7 +12,7 @@ import styles from './ActivoModal.module.css'
 
 const FORM_INICIAL = {
   num: '', nombre: '', costo: '', fechaAdq: '', fechaUso: '', vidaUtil: '5',
-  serie: '', factura: '',
+  serie: '', factura: '', detalle: '',
   categoria: '', localizacion: '', proveedor: '', marca: '', modelo: '', origen: '',
 }
 
@@ -64,6 +64,7 @@ export function CrearActivoModal({ onClose }) {
         costo: parseMonto(form.costo), fechaAdq: form.fechaAdq, fechaUso: form.fechaUso,
         vidaUtil: Number(form.vidaUtil),
         serie: form.serie.trim() || null, factura: form.factura.trim(),
+        detalle: form.detalle.trim() || null,
         categoria: Number(form.categoria), localizacion: Number(form.localizacion),
         proveedor: Number(form.proveedor), marca: form.marca ? Number(form.marca) : null,
         modelo: form.modelo ? Number(form.modelo) : null, origen: Number(form.origen),
@@ -155,6 +156,12 @@ export function CrearActivoModal({ onClose }) {
           <FormField label="N.º de factura" error={errors.factura}>
             <input type="text" value={form.factura} placeholder="F-0000"
               onChange={(e) => set('factura')(e.target.value)} />
+          </FormField>
+          <FormField label="Detalle adicional" error={errors.detalle} required={false}
+            hint="Opcional. Quién lo tiene o dónde está exactamente, si aplica."
+            className={styles.fieldFull}>
+            <textarea value={form.detalle} placeholder="Ej. Oficina de gerencia, a cargo de…"
+              rows={3} onChange={(e) => set('detalle')(e.target.value)} />
           </FormField>
         </div>
 
