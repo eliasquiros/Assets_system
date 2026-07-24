@@ -70,7 +70,10 @@ AUTH_USER_MODEL = 'accounts.Usuario'
 DATABASE_ROUTERS = ('django_tenants.routers.TenantSyncRouter',)
 
 MIDDLEWARE = [
-    'django_tenants.middleware.main.TenantMainMiddleware',   # fija el schema por Host, primero
+    # Topologia de API unica (api.sistema.com): el Host NO identifica a la
+    # empresa. Se deja el schema en publico por defecto; el login (hint) y la
+    # autenticacion (claim del JWT firmado) activan el schema real (RS-002).
+    'config.middleware.TenantFromTokenMiddleware',
     'corsheaders.middleware.CorsMiddleware',                 # antes de CommonMiddleware
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -193,13 +196,22 @@ SIMPLE_JWT = {
 # Cookies donde vive el JWT (nunca en el body ni en localStorage).
 AUTH_COOKIE_ACCESS = 'access'
 AUTH_COOKIE_REFRESH = 'refresh'
-AUTH_COOKIE_SAMESITE = 'Lax'
+# En dev, frontend y backend son el mismo origen (proxy de Vite), asi que 'Lax'
+# basta. En prod (API unica en api.sistema.com, frontend en *.sistema.com) la
+# peticion es cross-origin: la cookie httpOnly solo viaja con 'None' + Secure.
+# Se fija por env: DJANGO_AUTH_COOKIE_SAMESITE=None en produccion.
+AUTH_COOKIE_SAMESITE = os.environ.get('DJANGO_AUTH_COOKIE_SAMESITE', 'Lax')
 AUTH_COOKIE_SECURE = not DEBUG          # en dev (DEBUG=True) permite http://demo.localhost
 AUTH_COOKIE_REFRESH_PATH = '/api/auth'  # el refresh solo se envia a los endpoints de auth
 
 # CSRF: el token DEBE ser legible por JS para reenviarlo en X-CSRFToken.
+# NOTA (pendiente prod split-domain): con frontend y backend en dominios
+# distintos, el JS de *.sistema.com NO puede leer la cookie csrftoken de
+# api.sistema.com (lectura cross-origin bloqueada). Antes del deploy hay que
+# devolver el token CSRF en el body del login/refresh y guardarlo en memoria.
+# En dev (mismo origen via proxy) el double-submit actual funciona tal cual.
 CSRF_COOKIE_HTTPONLY = False
-CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = os.environ.get('DJANGO_AUTH_COOKIE_SAMESITE', 'Lax')
 CSRF_COOKIE_SECURE = not DEBUG
 # En produccion, usar un comodin para todos los subdominios de empresas
 # (ej. https://*.sistema.com) — Django soporta el prefijo '*.' desde la
