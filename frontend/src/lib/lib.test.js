@@ -110,15 +110,21 @@ describe('calcularDepreciacionPreview', () => {
 
 describe('validateRetiro', () => {
   it('returns no errors for a fully valid retiro', () => {
-    expect(validateRetiro({ activoNum: 'AF-0001', motivo: 'Venta', desc: 'detalle' })).toEqual({})
+    const archivo = new File(['x'], 'c.pdf', { type: 'application/pdf' })
+    expect(validateRetiro({
+      activoNum: 'AF-0001', motivo: 'Venta', desc: 'detalle',
+      fechaEfectiva: '2026-07-09', archivo,
+    })).toEqual({})
   })
 
-  it('requires activoNum, motivo and a non-blank desc', () => {
+  it('requires activoNum, motivo, desc, fecha efectiva and a backup file', () => {
     const errors = validateRetiro({ activoNum: '', motivo: '', desc: '   ' })
     expect(errors).toEqual({
       activoNum: 'Selecciona un activo',
       motivo: 'Selecciona un motivo',
       desc: 'Ingresa una descripción',
+      fechaEfectiva: 'Ingresa la fecha efectiva',
+      archivo: 'Adjunta un archivo de respaldo',
     })
   })
 })

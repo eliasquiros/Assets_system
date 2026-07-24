@@ -5,6 +5,7 @@ const VARIANTS = {
   'pendiente de baja': styles.warning,
   pendiente: styles.warning,
   definitiva: styles.dark,
+  'baja definitiva': styles.dark,
   revertida: styles.neutral,
 }
 

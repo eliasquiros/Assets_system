@@ -56,5 +56,8 @@ export function validateRetiro(values) {
   if (!values.activoNum) errors.activoNum = 'Selecciona un activo'
   if (!values.motivo) errors.motivo = 'Selecciona un motivo'
   if (!String(values.desc || '').trim()) errors.desc = 'Ingresa una descripción'
+  // RN-002.2: la fecha efectiva y el archivo de respaldo son obligatorios.
+  if (!values.fechaEfectiva) errors.fechaEfectiva = 'Ingresa la fecha efectiva'
+  if (!values.archivo) errors.archivo = 'Adjunta un archivo de respaldo'
   return errors
 }

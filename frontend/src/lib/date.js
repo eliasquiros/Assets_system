@@ -1,6 +1,10 @@
 export function fmtDate(iso) {
   if (!iso) return '—'
-  const parts = String(iso).split('-')
+  // Acepta tanto fechas puras ("2026-07-23") como datetimes ISO completos
+  // ("2026-07-23T17:45:00+00:00"): se descarta la hora antes de partir por
+  // guiones, para no arrastrar el "T17:45..." dentro del día.
+  const soloFecha = String(iso).split('T')[0]
+  const parts = soloFecha.split('-')
   if (parts.length < 3) return iso
   return `${parts[2]}/${parts[1]}/${parts[0]}`
 }
