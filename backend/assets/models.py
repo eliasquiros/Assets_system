@@ -260,6 +260,14 @@ class Movimiento(models.Model):
     )
     # Motivo/nota opcional del cambio (solo ediciones; NULL en ALTA).
     nota = models.TextField(null=True, blank=True)
+    # Solo se informa cuando tipo_evento es BAJA o REVERSION_BAJA. El motor de
+    # depreciacion lee la fecha de corte del retiro a traves de aqui, nunca
+    # desde `retiro` directamente, para no acoplar el motor al modulo de
+    # retiros (DA13). Opcional: es NULL en todos los demas eventos.
+    retiro = models.ForeignKey(
+        'Retiro', on_delete=models.PROTECT, related_name='movimientos',
+        null=True, blank=True,
+    )
 
     class Meta:
         db_table = 'movimiento'
@@ -277,3 +285,78 @@ class Movimiento(models.Model):
 
     def __str__(self):
         return f'{self.activo.numero_activo} · {self.tipo_evento} · {self.fecha_efectiva}'
+
+
+class Retiro(models.Model):
+    """Baja / retiro de un activo (tabla `retiro`, RN-002, DA12).
+
+    Fila propia y mutable unicamente durante el periodo de gracia de 2 dias:
+    nace PENDIENTE y puede pasar a REVERTIDA (si se corrige a tiempo) o a
+    DEFINITIVA (pasada la gracia). Una vez cerrada (DEFINITIVA/REVERTIDA) ya no
+    puede editarse ni borrarse (RN-002.6); esa garantia la sostiene un trigger
+    BEFORE UPDATE a nivel de motor (ver migracion del trigger), no solo la
+    disciplina de la aplicacion.
+
+    El activo nunca se borra ni se mueve al darse de baja (DA11); la condicion
+    "pendiente de baja" no se guarda en `activo`, se deriva de la existencia de
+    un retiro no revertido (DA15). El corte de depreciacion usa `fecha_efectiva`
+    (RN-002.3) y solo se aplica cuando el retiro pasa a DEFINITIVA (DA14).
+    """
+    VENTA = 'VENTA'
+    DESECHO = 'DESECHO'
+    ROBO_PERDIDA = 'ROBO_PERDIDA'
+    MOTIVO_CHOICES = [
+        (VENTA, 'Venta'),
+        (DESECHO, 'Desecho u obsolescencia'),
+        (ROBO_PERDIDA, 'Robo o pérdida'),
+    ]
+
+    PENDIENTE = 'PENDIENTE'
+    REVERTIDA = 'REVERTIDA'
+    DEFINITIVA = 'DEFINITIVA'
+    ESTADO_CHOICES = [
+        (PENDIENTE, 'Pendiente'),
+        (REVERTIDA, 'Revertida'),
+        (DEFINITIVA, 'Definitiva'),
+    ]
+
+    activo = models.ForeignKey(
+        Activo, on_delete=models.PROTECT, related_name='retiros',
+    )
+    motivo = models.CharField(max_length=30, choices=MOTIVO_CHOICES)
+    descripcion = models.TextField()
+    fecha_efectiva = models.DateField()
+    # Comprobante obligatorio para cualquier motivo (RN-002.2). Se guarda en
+    # storage privado local (MEDIA_ROOT), no servido publicamente. El acceso con
+    # enlace temporal firmado (RS-005) queda pendiente.
+    archivo_respaldo = models.FileField(upload_to='respaldos_retiro/')
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default=PENDIENTE)
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='retiros',
+    )
+
+    class Meta:
+        db_table = 'retiro'
+        # Mas reciente primero: alimenta el listado del historial de bajas.
+        ordering = ['-fecha_registro', '-id']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(motivo__in=['VENTA', 'DESECHO', 'ROBO_PERDIDA']),
+                name='ck_retiro_motivo',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(estado__in=['PENDIENTE', 'REVERTIDA', 'DEFINITIVA']),
+                name='ck_retiro_estado',
+            ),
+            # A lo sumo un retiro "activo" (no revertido) por activo a la vez
+            # (RN-002.4/DA12): indice unico parcial que excluye los revertidos.
+            models.UniqueConstraint(
+                fields=['activo'],
+                condition=~models.Q(estado='REVERTIDA'),
+                name='uq_retiro_activo_no_revertido',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.activo.numero_activo} · {self.motivo} · {self.estado}'
