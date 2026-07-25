@@ -16,7 +16,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from config.env import resolver_secret_key
+from config.env import resolver_debug, resolver_secret_key, validar_conexion_db
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -28,9 +28,12 @@ load_dotenv(BASE_DIR / '.env')
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+# Falla cerrado: sin DJANGO_DEBUG=True explicito, el modo debug queda apagado.
+DEBUG = resolver_debug(os.environ)
 
 # SECURITY WARNING: en produccion DJANGO_SECRET_KEY es obligatorio (fail-closed).
+# En dev, sin variable, se genera una clave efimera: no hay ninguna clave por
+# defecto en el repositorio con la que se puedan forjar JWT (ver config/env.py).
 SECRET_KEY = resolver_secret_key(os.environ, DEBUG)
 
 # DA16: cada empresa se sirve desde su propio subdominio (ej. acme.localhost
@@ -123,6 +126,11 @@ DATABASES['default']['CONN_MAX_AGE'] = int(os.environ.get('DB_CONN_MAX_AGE', '0'
 _db_sslmode = os.environ.get('DB_SSLMODE')
 if _db_sslmode:
     DATABASES['default']['OPTIONS'] = {'sslmode': _db_sslmode}
+
+# Guard de arranque: el pooler en modo transaccion (puerto 6543) rompe el
+# aislamiento por schema y puede servir datos de otra empresa sin dejar rastro.
+# Falla cerrado — el proceso no levanta (ver config/env.py).
+validar_conexion_db(DATABASES['default'])
 
 
 # Password validation
