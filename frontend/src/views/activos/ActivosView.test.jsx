@@ -37,7 +37,7 @@ describe('ActivosView', () => {
 
   it('renders the fetched activos once the query succeeds', () => {
     useActivos.mockReturnValue({
-      data: [{ num: 'AF-0001', nombre: 'Laptop Dell', area: 'Oficinas', tipo: 'Cómputo', costo: 850000, libros: 255000, dep: 595000, estado: 'Depreciando', fechaAdq: '2022-03-15' }],
+      data: [{ num: 'AF-0001', nombre: 'Laptop Dell', area: 'Oficinas', tipo: 'Cómputo', costo: 850000, libros: 255000, dep: 595000, estado: 'Depreciando', fechaUso: '2022-04-01' }],
       isLoading: false, isError: false,
     })
     renderAt('/activos')

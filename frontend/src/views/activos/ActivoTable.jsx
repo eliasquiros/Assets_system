@@ -18,7 +18,7 @@ export function ActivoTable({ isLoading, isError, activos }) {
           <tr>
             <th>N.º Activo</th><th>Descripción</th><th>Área</th><th>Categoría</th>
             <th>Costo original</th><th>Valor en libros</th><th>Dep. acumulada</th>
-            <th>Estado</th><th>F. adquisición</th><th>Acciones</th>
+            <th>Estado</th><th>F. inicio de uso</th><th>Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -32,7 +32,7 @@ export function ActivoTable({ isLoading, isError, activos }) {
               <td className="mono">{money(a.libros)}</td>
               <td className="mono">{money(a.dep)}</td>
               <td><Badge label={a.estado} /></td>
-              <td className="mono">{fmtDate(a.fechaAdq)}</td>
+              <td className="mono">{fmtDate(a.fechaUso)}</td>
               <td>
                 <div className={styles.actions}>
                   <Link className={`${styles.btn} ${styles.btnPrimary}`} to={`/activos/${a.num}`}>Ver más</Link>
