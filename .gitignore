@@ -11,6 +11,9 @@ backend/media_privado/
 
 # Herramienta de operacion manual (onboarding de empresas reales), no parte del producto.
 backend/accounts/management/commands/crear_empresa.py
+
+# Guia de deploy personal (contiene detalles especificos del dominio/infra propia)
+docs/guia_deploy.md
 # Frontend (Vite/React)
 node_modules/
 dist/
