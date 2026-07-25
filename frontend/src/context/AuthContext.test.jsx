@@ -19,7 +19,10 @@ function Consumer() {
 }
 
 describe('AuthContext', () => {
-  afterEach(() => vi.clearAllMocks())
+  afterEach(() => {
+    vi.clearAllMocks()
+    vi.unstubAllGlobals()
+  })
 
   it('arranca sin sesión cuando /me responde 401', async () => {
     meRequest.mockRejectedValue(new Error('401'))
@@ -50,6 +53,27 @@ describe('AuthContext', () => {
 
     await userEvent.click(await screen.findByText('salir'))
     await waitFor(() => expect(screen.getByText('entrar')).toBeInTheDocument())
+  })
+
+  it('descarta la sesión de /me si se está visitando el subdominio de otra empresa', async () => {
+    // El JWT vive en una cookie de la API (api.sistema.com), asi que la sesion
+    // viaja igual desde cualquier subdominio del frontend. Sin esta comprobacion
+    // la app mostraria los datos de Demo bajo la URL de otra empresa.
+    vi.stubGlobal('location', { hostname: 'otra.sistema.com' })
+    meRequest.mockResolvedValue({ username: 'ana', empresa: 'Demo', subdominio: 'demo' })
+
+    render(<AuthProvider><Consumer /></AuthProvider>)
+
+    expect(await screen.findByText('entrar')).toBeInTheDocument()
+  })
+
+  it('acepta la sesión de /me cuando el subdominio sí es el de su empresa', async () => {
+    vi.stubGlobal('location', { hostname: 'demo.sistema.com' })
+    meRequest.mockResolvedValue({ username: 'ana', empresa: 'Demo', subdominio: 'demo' })
+
+    render(<AuthProvider><Consumer /></AuthProvider>)
+
+    expect(await screen.findByText('ana · Demo')).toBeInTheDocument()
   })
 
   it('lanza si useAuth se usa fuera del provider', () => {

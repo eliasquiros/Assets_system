@@ -24,6 +24,25 @@ export function resolveEmpresaSlug(hostname) {
   return resto.length ? primera : ''
 }
 
+// Decide si una sesion viva puede usarse en el host que se esta visitando.
+//
+// El JWT vive en una cookie de la API (api.sistema.com), asi que viaja igual
+// desde CUALQUIER subdominio del frontend, y el backend resuelve la empresa por
+// el claim firmado del token, nunca por el host (RS-002). Sin esta comprobacion,
+// abrir otra.sistema.com con la sesion de demo entra directo a la app mostrando
+// los datos de DEMO bajo la URL de otra empresa: no filtra datos ajenos —el
+// aislamiento lo garantiza el token— pero invita a editar la empresa equivocada
+// creyendo que se esta en otra.
+//
+// No valida (devuelve true) cuando el host no lleva empresa —localhost de dev,
+// dominio apex— ni cuando la sesion no trae slug: esto acota la CONFUSION de
+// empresa en la UI, no es la frontera de seguridad.
+export function sesionPerteneceAlHost(hostname, subdominioSesion) {
+  const slugHost = resolveEmpresaSlug(hostname)
+  if (!slugHost || !subdominioSesion) return true
+  return slugHost === subdominioSesion
+}
+
 function esLocal(hostname) {
   return (
     !hostname ||

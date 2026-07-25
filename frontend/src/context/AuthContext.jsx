@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { login as loginRequest, logout as logoutRequest, me as meRequest } from '../api/auth'
+import { sesionPerteneceAlHost } from '../lib/apiBase'
 
 const AuthContext = createContext(null)
 
@@ -12,7 +13,13 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let active = true
     meRequest()
-      .then((data) => { if (active) setSession(data) })
+      .then((data) => {
+        if (!active) return
+        // La cookie de la API es comun a todos los subdominios del frontend: una
+        // sesion de otra empresa no se acepta aqui, se muestra el login.
+        const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+        setSession(sesionPerteneceAlHost(hostname, data.subdominio) ? data : null)
+      })
       .catch(() => { if (active) setSession(null) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }

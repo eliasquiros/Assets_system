@@ -95,6 +95,18 @@ class AuthFlowTest(TenantTestCase):
         self.assertEqual(me.status_code, 200)
         self.assertEqual(me.data['username'], 'ana')
 
+    def test_me_incluye_el_slug_de_la_empresa(self):
+        """/me devuelve el slug ademas del nombre. El frontend lo necesita para
+        comparar la empresa de la sesion contra el subdominio que se esta
+        visitando: sin el no puede detectar una sesion abierta bajo la URL de
+        otra empresa (el backend resuelve la empresa por el claim firmado del
+        token, nunca por el Host, asi que la sesion sigue viva en cualquier
+        subdominio)."""
+        self._login()
+        me = self.client.get('/api/auth/me/')
+        self.assertEqual(me.status_code, 200)
+        self.assertEqual(me.data['subdominio'], self.slug)
+
     def test_throttle_bloquea_tras_demasiados_intentos(self):
         cache.clear()
         # DRF fija ScopedRateThrottle.THROTTLE_RATES como atributo de clase al

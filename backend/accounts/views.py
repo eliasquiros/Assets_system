@@ -145,4 +145,9 @@ class MeView(APIView):
         return Response({
             'username': request.user.username,
             'empresa': getattr(connection.tenant, 'nombre', None),
+            # El slug, ademas del nombre: el frontend lo compara contra el
+            # subdominio que se esta visitando para no mostrar los datos de una
+            # empresa bajo la URL de otra (la sesion vive en una cookie de la
+            # API, comun a todos los subdominios del frontend).
+            'subdominio': getattr(connection.tenant, 'subdominio', None),
         })
