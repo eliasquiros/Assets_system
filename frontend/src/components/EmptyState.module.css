@@ -1,1 +1,31 @@
-.empty { padding: 48px; text-align: center; color: var(--color-muted-2); font-size: 13px; }
+/* Estado vacio dentro de su propia tarjeta: sin ella el mensaje flota sobre el
+   fondo y la pagina parece rota en vez de simplemente vacia. */
+.empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px;
+  padding: 56px 32px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  text-align: center;
+}
+
+.icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px;
+  border-radius: var(--r-full);
+  background: var(--canvas);
+  color: var(--ink-4);
+}
+
+.message {
+  margin: 0;
+  font-size: 13.5px; line-height: 1.5;
+  color: var(--ink-3);
+  max-width: 42ch;
+}
+
+@media (max-width: 700px) {
+  .empty { padding: 40px 20px; }
+}

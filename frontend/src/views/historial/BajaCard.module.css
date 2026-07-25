@@ -1,17 +1,92 @@
-.card { background: #fff; border: 1px solid var(--color-border); border-radius: 9px; overflow: hidden; margin-bottom: 10px; font-size: 13.5px; }
-.head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 10px 13px; border-bottom: 1px solid var(--color-border-light); }
-.identidad { display: flex; align-items: center; gap: 9px; min-width: 0; }
-.id { font-size: 12px; color: var(--color-muted-2); }
-.nombre { font-weight: 600; font-size: 14px; }
-.num { font-size: 12px; color: var(--color-muted); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  overflow: hidden;
+  font-size: 13.5px;
+  transition: box-shadow var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease);
+}
+.card:hover { box-shadow: var(--sh-2); border-color: var(--line-strong); }
+
+/* ---- Encabezado ---------------------------------------------------------- */
+.head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface-sunk);
+}
+
+.identidad { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+/* El id de la baja en una pastilla: lo separa del nombre del activo, que es lo
+   que de verdad se busca al recorrer la lista. */
+.id {
+  font-size: 11.5px; font-weight: 500;
+  color: var(--ink-3);
+  background: var(--canvas-2);
+  border-radius: var(--r-xs);
+  padding: 3px 8px;
+  flex: none;
+}
+.nombre { font-weight: 600; font-size: 14px; color: var(--ink); letter-spacing: -.016em; }
+.num { font-size: 11.5px; color: var(--ink-4); margin-top: 1px; }
+
 /* Motivo (por que se retira) separado del estado (Badge, en donde va el
    ciclo): antes eran dos <span> identicos y se confundian visualmente. */
-.etiquetas { display: flex; align-items: center; gap: 10px; flex: none; }
-.motivo { font-size: 12.5px; font-weight: 600; color: var(--color-muted); text-transform: uppercase; letter-spacing: .02em; }
-.body { padding: 10px 13px; }
-.desc { font-size: 13.5px; margin: 0 0 10px; color: var(--color-text); }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px 16px; margin-bottom: 10px; }
-.gridLabel { font-size: 11px; color: var(--color-muted-2); text-transform: uppercase; letter-spacing: .02em; margin-bottom: 2px; }
-.gridValue { font-size: 13.5px; }
-.pending { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); border-radius: 8px; font-size: 13px; }
-.reverted { padding: 8px 12px; background: var(--color-neutral-bg); border: 1px solid var(--color-neutral-border); border-radius: 8px; font-size: 12.5px; color: var(--color-neutral-text); }
+.etiquetas { display: flex; align-items: center; gap: 12px; flex: none; }
+.motivo {
+  font-size: 10.5px; font-weight: 600;
+  color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: .07em;
+}
+
+/* ---- Cuerpo -------------------------------------------------------------- */
+.body { padding: 14px 16px; }
+.desc { font-size: 13.5px; margin: 0 0 14px; color: var(--ink-2); line-height: 1.55; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px 18px; margin-bottom: 12px; }
+.gridLabel {
+  font-size: 10px; font-weight: 600;
+  color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: .075em;
+  margin-bottom: 3px;
+}
+.gridValue { font-size: 13.5px; color: var(--ink); }
+
+/* ---- Periodo de gracia --------------------------------------------------- */
+/* El unico bloque ambar de la app: marca la ventana en la que todavia se puede
+   deshacer. El texto del contador es un solo nodo — no separarlo. */
+.pending {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+  border-radius: var(--r-md);
+  font-size: 12.5px; font-weight: 500;
+  color: var(--warn-fg);
+}
+.pending a {
+  color: var(--warn-fg);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  transition: text-decoration-color var(--dur-1) var(--ease);
+}
+.pending a:hover { text-decoration-color: currentColor; }
+
+.reverted {
+  padding: 10px 14px;
+  background: var(--mute-bg);
+  border: 1px solid var(--mute-line);
+  border-radius: var(--r-md);
+  font-size: 12.5px;
+  color: var(--mute-fg);
+}
+
+@media (max-width: 640px) {
+  .head { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .etiquetas { width: 100%; justify-content: space-between; }
+}

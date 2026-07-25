@@ -57,7 +57,7 @@ describe('ActivoSummaryBar', () => {
 
 describe('ActivoTable', () => {
   const ACTIVOS = [
-    { num: 'AF-0001', nombre: 'Laptop Dell', area: 'Oficinas', tipo: 'Cómputo', costo: 850000, libros: 255000, dep: 595000, estado: 'Depreciando', fechaAdq: '2022-03-15' },
+    { num: 'AF-0001', nombre: 'Laptop Dell', area: 'Oficinas', tipo: 'Cómputo', costo: 850000, libros: 255000, dep: 595000, estado: 'Depreciando', fechaUso: '2022-04-01' },
   ]
 
   function renderTable(props) {
@@ -84,7 +84,7 @@ describe('ActivoTable', () => {
     expect(screen.getByText('AF-0001')).toBeInTheDocument()
     expect(screen.getByText('Laptop Dell')).toBeInTheDocument()
     expect(screen.getByText('₡ 850.000')).toBeInTheDocument()
-    expect(screen.getByText('15/03/2022')).toBeInTheDocument()
+    expect(screen.getByText('01/04/2022')).toBeInTheDocument()
     expect(screen.getByText('Depreciando')).toBeInTheDocument()
   })
 })

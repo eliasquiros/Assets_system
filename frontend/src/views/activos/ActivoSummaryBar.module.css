@@ -1,6 +1,74 @@
-.bar { display: flex; background: #fff; border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
-.cell { flex: 1; padding: 15px 20px; border-right: 1px solid var(--color-border-light); }
+/* Fila de totales del filtro activo. Se mantiene como una sola pieza (no cuatro
+   tarjetas sueltas) porque los cuatro valores describen el mismo conjunto. */
+.bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, .7fr) minmax(0, 1fr) minmax(0, 1fr);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.cell {
+  padding: 14px 18px;
+  border-right: 1px solid var(--line-soft);
+  min-width: 0;
+}
 .cell:last-child { border-right: none; }
-.highlight { background: #F6F9FD; }
-.label { font-size: 10px; font-weight: 600; color: var(--color-muted-2); text-transform: uppercase; margin-bottom: 5px; }
-.value { font-size: 15px; font-weight: 600; color: var(--color-navy); }
+
+/* Los montos y el conteo usan .mono (global) — aca solo se les da tamaño y
+   peso; el formato sigue saliendo de lib/money.js. */
+.cell :global(.mono) {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -.018em;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.label {
+  font-size: 10px; font-weight: 600;
+  color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: .075em;
+  margin-bottom: 5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.value {
+  font-size: 14.5px; font-weight: 500; color: var(--ink);
+  letter-spacing: -.014em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Valor en libros es la cifra que se consulta de verdad: se destaca con fondo
+   propio y una barra de acento, no con un color mas fuerte en el texto. */
+.highlight {
+  position: relative;
+  background: var(--accent-soft);
+}
+.highlight::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+  background: var(--accent);
+}
+.highlight .label { color: var(--accent); opacity: .85; }
+.highlight :global(.mono) { color: var(--accent-press); font-weight: 600; }
+
+@media (max-width: 900px) {
+  .bar { grid-template-columns: 1fr 1fr; }
+  /* Con dos columnas, el borde derecho de la primera de cada fila sobra. */
+  .cell { border-bottom: 1px solid var(--line-soft); }
+  .cell:nth-child(2n) { border-right: none; }
+  .cell:nth-last-child(-n+2) { border-bottom: none; }
+}
+
+@media (max-width: 520px) {
+  .bar { grid-template-columns: 1fr; }
+  .cell { border-right: none; }
+  .cell:last-child { border-bottom: none; }
+}

@@ -1,3 +1,44 @@
-.overlay { position: fixed; inset: 0; background: rgba(11,37,69,.42); z-index: 85; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.modal { width: 440px; max-width: 100%; background: #fff; border-radius: 12px; padding: 22px; }
-.actions { display: flex; gap: 10px; margin-top: 18px; }
+.overlay {
+  position: fixed; inset: 0; z-index: 85;
+  background: rgba(16, 18, 22, .40);
+  backdrop-filter: blur(3px) saturate(.9);
+  -webkit-backdrop-filter: blur(3px) saturate(.9);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  animation: fade var(--dur-2) var(--ease);
+}
+
+/* Dialogo de confirmacion: mas angosto y centrado en pantalla, para que se lea
+   como una pregunta y no como otro formulario. */
+.modal {
+  width: 420px; max-width: 100%;
+  background: var(--surface);
+  border-radius: var(--r-xl);
+  padding: 26px 26px 22px;
+  box-shadow: var(--sh-4);
+  animation: rise var(--dur-3) var(--ease);
+}
+
+.icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+  margin-bottom: 15px;
+}
+
+.modal h2 { font-size: 17px; font-weight: 600; letter-spacing: -.024em; margin-bottom: 7px; }
+.modal p { font-size: 13.5px; line-height: 1.6; color: var(--ink-3); margin: 0; }
+.modal strong { color: var(--ink); font-weight: 600; }
+
+.actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 480px) {
+  .modal { padding: 22px 20px 20px; }
+  .actions button { flex: 1; }
+}

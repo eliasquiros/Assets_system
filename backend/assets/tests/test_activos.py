@@ -65,13 +65,13 @@ class ActivosApiTest(TenantTestCase):
         self.assertEqual(len(resp.data), 2)
         a = resp.data[0]
         self.assertEqual(set(a.keys()), {'num', 'nombre', 'area', 'tipo', 'costo',
-                                         'libros', 'dep', 'estado', 'fechaAdq',
+                                         'libros', 'dep', 'estado', 'fechaUso',
                                          'pendienteBaja'})
         self.assertEqual(a['num'], 'AF-0001')
         self.assertEqual(a['area'], 'Oficinas Administrativas')
         self.assertEqual(a['tipo'], 'Equipo de cómputo')
         self.assertEqual(a['estado'], 'Depreciando')  # etiqueta amigable, no el enum
-        self.assertEqual(a['fechaAdq'], '2022-03-15')
+        self.assertEqual(a['fechaUso'], '2022-04-01')
         # Montos como numeros (no strings) para que la SummaryBar pueda sumarlos.
         self.assertEqual(a['costo'], 850000)
         self.assertIsInstance(a['costo'], (int, float))

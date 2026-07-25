@@ -38,7 +38,11 @@ export function ActivoDetailDrawer({ onClose }) {
         ) : (
           <>
             <header className={styles.header}>
-              <button className={styles.close} onClick={onClose} aria-label="Cerrar">×</button>
+              <button type="button" className={styles.close} onClick={onClose} aria-label="Cerrar">
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M6 6 18 18M18 6 6 18" />
+                </svg>
+              </button>
               <div className={`mono ${styles.num}`}>{activo.num}</div>
               <h2 className={styles.name}>{activo.nombre}</h2>
               <div className={styles.headMeta}>

@@ -1,16 +1,129 @@
-.overlay { position: fixed; inset: 0; background: rgba(11,37,69,.42); z-index: 85; display: flex; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto; }
-.modal { width: 960px; max-width: 100%; background: #fff; border-radius: 12px; margin: auto; }
-.modal h2 { padding: 18px 22px; margin: 0; border-bottom: 1px solid var(--color-border-light); font-size: 16px; }
-.grid { padding: 22px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px 18px; }
-.grid input, .grid textarea, .grid select { height: 40px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 7px; font-size: 13.5px; width: 100%; }
-.actions { padding: 16px 22px; border-top: 1px solid var(--color-border-light); display: flex; justify-content: flex-end; gap: 10px; }
-.aviso { font-size: 11px; color: var(--color-muted-2); font-weight: 500; }
-.fieldFull { grid-column: 1 / -1; }
-.fieldFull textarea { height: auto; padding: 10px 12px; resize: vertical; font-family: var(--font-sans); }
+/* Velo del modal. El desenfoque separa el formulario del listado sin necesidad
+   de oscurecer tanto el fondo que se pierda el contexto de donde se estaba. */
+.overlay {
+  position: fixed; inset: 0; z-index: 85;
+  background: rgba(16, 18, 22, .40);
+  backdrop-filter: blur(3px) saturate(.9);
+  -webkit-backdrop-filter: blur(3px) saturate(.9);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px 20px;
+  overflow-y: auto;
+  animation: fade var(--dur-2) var(--ease);
+}
 
-.calculo { margin: 0 22px 22px; padding: 14px 18px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-bg); }
-.calculoTitle { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--color-muted); margin-bottom: 10px; }
-.calculoValues { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.calculoValues > div { display: flex; flex-direction: column; gap: 3px; }
-.calculoLabel { font-size: 10.5px; color: var(--color-muted-2); }
-.calculoHint { font-size: 12.5px; color: var(--color-muted-2); }
+.modal {
+  width: 960px; max-width: 100%;
+  background: var(--surface);
+  border-radius: var(--r-xl);
+  margin: auto;
+  box-shadow: var(--sh-4);
+  /* Sin overflow: hidden a proposito. El contenedor de scroll es .overlay, y
+     un overflow aca encerraria a .actions e inutilizaria su position: sticky.
+     Las esquinas inferiores las redondea .actions por su cuenta. */
+  animation: rise var(--dur-3) var(--ease);
+}
+
+.modal h2 {
+  padding: 18px 24px;
+  margin: 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 16px; font-weight: 600; letter-spacing: -.02em;
+  color: var(--ink);
+}
+
+/* ---- Rejilla de campos ---------------------------------------------------- */
+.grid {
+  padding: 22px 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px 18px;
+}
+
+.grid input, .grid select {
+  height: var(--h-control);
+  padding: 0 12px;
+  border-radius: var(--r-sm);
+  font-size: 13.5px;
+  width: 100%;
+}
+.grid textarea {
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  font-size: 13.5px;
+  width: 100%;
+}
+
+.aviso {
+  font-size: 11.5px; font-weight: 500;
+  color: var(--accent);
+  display: inline-flex; align-items: center; gap: 5px;
+}
+/* Punto de acento antes del numero sugerido: lo separa de un mensaje de error,
+   que lleva el mismo formato pero en rojo. */
+.aviso::before {
+  content: ''; flex: none;
+  width: 5px; height: 5px; border-radius: 50%; background: currentColor;
+}
+
+.fieldFull { grid-column: 1 / -1; }
+.fieldFull textarea { height: auto; min-height: 76px; resize: vertical; font-family: var(--font-sans); }
+
+/* ---- Vista previa del calculo --------------------------------------------- */
+/* Es informacion derivada, no un campo: fondo hundido y borde continuo para que
+   se lea como "esto lo calcula el sistema, no lo escribis vos". */
+.calculo {
+  margin: 0 24px 22px;
+  padding: 15px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-sunk);
+}
+
+.calculoTitle {
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .075em;
+  color: var(--ink-4);
+  margin-bottom: 12px;
+}
+
+.calculoValues { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.calculoValues > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+/* Un solo regla para el valor de cada celda, sea monto (.mono) o texto de
+   estado: si se separan, la de :last-child gana por especificidad y pisa a la
+   de .mono sin que se note hasta ver el modal. */
+.calculoValues > div > span:last-child {
+  font-size: 14.5px; font-weight: 500; color: var(--ink); letter-spacing: -.018em;
+}
+
+.calculoLabel { font-size: 10.5px; color: var(--ink-4); font-weight: 500; }
+.calculoHint { font-size: 12.5px; color: var(--ink-4); }
+
+/* ---- Acciones ------------------------------------------------------------- */
+/* Barra pegada al fondo del modal: en un formulario largo, "Guardar" queda
+   siempre visible sin tener que llegar al final desplazando. */
+.actions {
+  position: sticky; bottom: 0;
+  padding: 14px 24px;
+  border-top: 1px solid var(--line-soft);
+  background: var(--surface);
+  border-radius: 0 0 var(--r-xl) var(--r-xl);
+  display: flex; justify-content: flex-end; gap: 10px;
+}
+
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rise { from { opacity: 0; transform: translateY(12px) scale(.99); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 700px) {
+  .overlay { padding: 0; }
+  .modal { border-radius: 0; min-height: 100%; }
+  .grid { padding: 18px 16px; grid-template-columns: 1fr; gap: 14px; }
+  .modal h2 { padding: 16px; }
+  .calculo { margin: 0 16px 18px; }
+  .calculoValues { grid-template-columns: 1fr; gap: 10px; }
+  .actions {
+    padding: 12px 16px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    border-radius: 0;
+  }
+  .actions button { flex: 1; }
+}

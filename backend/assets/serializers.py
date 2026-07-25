@@ -28,7 +28,9 @@ class ActivoListSerializer(serializers.ModelSerializer):
     libros = serializers.FloatField(source='valor_libros_actual')
     dep = serializers.FloatField(source='depreciacion_acumulada_actual')
     estado = serializers.CharField(source='get_estado_depreciacion_display')
-    fechaAdq = serializers.DateField(source='fecha_adquisicion')
+    # El listado muestra el inicio de uso (desde donde corre la depreciacion,
+    # RN-001.2), no la fecha de adquisicion; esa sigue disponible en el detalle.
+    fechaUso = serializers.DateField(source='fecha_inicio')
     # "Pendiente de baja" no es un campo del activo: se deriva de la existencia
     # de una baja PENDIENTE (RN-002.5/DA15). El listado lo anota en el queryset;
     # el detalle (una sola fila) cae al conteo puntual.
@@ -37,7 +39,7 @@ class ActivoListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Activo
         fields = ['num', 'nombre', 'area', 'tipo', 'costo', 'libros', 'dep',
-                  'estado', 'fechaAdq', 'pendienteBaja']
+                  'estado', 'fechaUso', 'pendienteBaja']
 
     def get_pendienteBaja(self, obj):
         anotado = getattr(obj, 'pendiente_baja', None)
@@ -50,7 +52,9 @@ class ActivoDetailSerializer(ActivoListSerializer):
     """Detalle completo del activo para el "Ver mas": ademas del contrato del
     listado, expone todos los campos restantes del modelo (vida util, serie,
     factura, fechas) para que el drawer muestre la ficha entera."""
-    fechaUso = serializers.DateField(source='fecha_inicio')
+    # fechaUso ya viene heredado del listado; aca se suma la de adquisicion,
+    # que la ficha del detalle si muestra (a diferencia de la tabla).
+    fechaAdq = serializers.DateField(source='fecha_adquisicion')
     vidaUtil = serializers.IntegerField(source='vida_util_anios')
     serie = serializers.CharField(allow_null=True)
     factura = serializers.CharField(allow_null=True)
@@ -73,7 +77,7 @@ class ActivoDetailSerializer(ActivoListSerializer):
 
     class Meta(ActivoListSerializer.Meta):
         fields = ActivoListSerializer.Meta.fields + [
-            'fechaUso', 'vidaUtil', 'serie', 'factura', 'detalle', 'proveedor',
+            'fechaAdq', 'vidaUtil', 'serie', 'factura', 'detalle', 'proveedor',
             'marca', 'modelo', 'origen',
             'version', 'categoriaId', 'localizacionId', 'proveedorId',
             'marcaId', 'modeloId', 'origenId',

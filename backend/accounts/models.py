@@ -13,6 +13,10 @@ class Usuario(AbstractBaseUser):
     """
     username = models.CharField(max_length=150, unique=True)
     password = models.CharField(max_length=255, db_column='password_hash')
+    # Opcional por ahora: solo el dato, sin ningun flujo asociado todavia (sin
+    # recuperacion de contrasena, sin 2FA, sin verificacion). Se deja unico
+    # para no tener que migrar mas adelante si se usa como identificador.
+    email = models.EmailField(max_length=255, null=True, blank=True, unique=True, db_column='correo')
     is_active = models.BooleanField(default=True, db_column='activo')
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     last_login = models.DateTimeField(

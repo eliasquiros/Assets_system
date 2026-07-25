@@ -43,7 +43,7 @@ describe('App', () => {
     meRequest.mockResolvedValue(SESSION)
     window.history.pushState({}, '', '/')
     render(<App />)
-    expect(await screen.findByText('Sistema de Activos Fijos')).toBeInTheDocument()
+    expect(await screen.findByText('Acticr')).toBeInTheDocument()
     expect(screen.getByText('ana')).toBeInTheDocument()
   })
 

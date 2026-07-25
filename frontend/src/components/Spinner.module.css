@@ -1,7 +1,22 @@
+/* Arco de 3/4 en vez de un anillo con el borde superior coloreado: gira mas
+   parejo y se lee mejor a 14px. */
 .spinner {
-  display: inline-block; border-radius: 50%;
-  border: 2px solid rgba(11,37,69,.15);
-  border-top-color: var(--color-blue);
-  animation: spin .7s linear infinite;
+  display: inline-block;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-right-color: var(--accent);
+  animation: spin .65s cubic-bezier(.5, .15, .5, .85) infinite;
 }
+
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Sin animacion, un anillo estatico no comunica "cargando". Se sustituye por
+   un pulso de opacidad, que sigue indicando actividad sin movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: pulse 1.4s ease-in-out infinite !important;
+    border-color: var(--accent);
+  }
+  @keyframes pulse { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
+}

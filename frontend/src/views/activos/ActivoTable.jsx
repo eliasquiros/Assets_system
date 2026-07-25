@@ -7,7 +7,7 @@ import { fmtDate } from '../../lib/date'
 import styles from './ActivoTable.module.css'
 
 export function ActivoTable({ isLoading, isError, activos }) {
-  if (isLoading) return <Spinner size={24} />
+  if (isLoading) return <div className={styles.loading}><Spinner size={24} /></div>
   if (isError) return <EmptyState message="No se pudo conectar con el servidor." />
   if (activos.length === 0) return <EmptyState message="No se encontraron activos con los filtros actuales." />
 
@@ -18,7 +18,7 @@ export function ActivoTable({ isLoading, isError, activos }) {
           <tr>
             <th>N.º Activo</th><th>Descripción</th><th>Área</th><th>Categoría</th>
             <th>Costo original</th><th>Valor en libros</th><th>Dep. acumulada</th>
-            <th>Estado</th><th>F. adquisición</th><th>Acciones</th>
+            <th>Estado</th><th>F. inicio de uso</th><th>Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -32,7 +32,7 @@ export function ActivoTable({ isLoading, isError, activos }) {
               <td className="mono">{money(a.libros)}</td>
               <td className="mono">{money(a.dep)}</td>
               <td><Badge label={a.estado} /></td>
-              <td className="mono">{fmtDate(a.fechaAdq)}</td>
+              <td className="mono">{fmtDate(a.fechaUso)}</td>
               <td>
                 <div className={styles.actions}>
                   <Link className={`${styles.btn} ${styles.btnPrimary}`} to={`/activos/${a.num}`}>Ver más</Link>

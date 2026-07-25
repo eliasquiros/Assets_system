@@ -53,6 +53,29 @@ class AuthFlowTest(TenantTestCase):
         self.assertEqual(access['samesite'], 'Lax')
         self.assertTrue(resp.cookies['refresh']['httponly'])
 
+    def test_login_ok_actualiza_ultimo_acceso(self):
+        with tenant_context(self.tenant):
+            self.assertIsNone(Usuario.objects.get(username='ana').last_login)
+        resp = self._login()
+        self.assertEqual(resp.status_code, 200)
+        with tenant_context(self.tenant):
+            self.assertIsNotNone(Usuario.objects.get(username='ana').last_login)
+
+    def test_login_fallido_no_actualiza_ultimo_acceso(self):
+        self._login(password='equivocada')
+        with tenant_context(self.tenant):
+            self.assertIsNone(Usuario.objects.get(username='ana').last_login)
+
+    def test_refresh_no_actualiza_ultimo_acceso(self):
+        # "Ultimo acceso" debe reflejar el login real (usuario+contrasena), no
+        # la renovacion automatica de sesion via /auth/refresh/.
+        self._login()
+        with tenant_context(self.tenant):
+            primer_acceso = Usuario.objects.get(username='ana').last_login
+        self.client.post('/api/auth/refresh/')
+        with tenant_context(self.tenant):
+            self.assertEqual(Usuario.objects.get(username='ana').last_login, primer_acceso)
+
     def test_error_generico_identico_para_usuario_inexistente_y_password_mala(self):
         r_mala = self._login(password='equivocada')
         r_inexistente = self._login(usuario='fantasma', password='loquesea')

@@ -1,4 +1,4 @@
-# Frontend — Sistema de Activos Fijos
+# Frontend — Acticr (Sistema de Gestión de Activos)
 
 React + Vite (JavaScript, sin TypeScript). Consume una API DRF separada (no incluida en esta carpeta) en `/api` (configurable con `VITE_API_URL`, pero debe quedarse relativa — ver la sección de subdominios más abajo).
 
@@ -48,6 +48,22 @@ Esto tiene dos consecuencias directas en este código:
 - `LoginView` muestra el `Host` actual (`window.location.host`) antes del formulario, para que el usuario pueda confirmar que está en la URL de su propia empresa antes de escribir su contraseña — si escribe usuario/contraseña correctos pero está en el subdominio de otra empresa, el sistema responde "usuario o contraseña incorrectos" sin distinción (RS-002: nunca se revela en qué empresa existe una cuenta).
 
 **Para probar subdominios en desarrollo local:** los navegadores modernos ya resuelven cualquier `*.localhost` a `127.0.0.1` sin configuración adicional. `vite.config.js` declara `server.allowedHosts: ['.localhost']` para que el dev server acepte esos hosts (Vite rechaza por defecto cualquier `Host` no reconocido). Basta con abrir `http://acme.localhost:5173` en vez de `http://localhost:5173`.
+
+## Sistema de diseño
+
+`styles/tokens.css` es la única fuente de verdad visual. Los tokens con nombre corto (`--ink`, `--canvas`, `--accent`, `--line`, `--r-md`, `--sh-2`, `--dur-2`…) son los actuales; los `--color-*` que quedan al final del archivo son **alias de compatibilidad** para los módulos que aún los referencian — no agregar usos nuevos.
+
+Reglas del sistema:
+
+- **Color contenido.** Casi todo es neutro (piedra cálida). El color se reserva para tres cosas: estado (badges, avisos), foco, y la pestaña/enlace activo. La acción primaria es tinta (`--ink`), no un azul saturado: así no compite con los badges de estado.
+- **Tipografía: Geist / Geist Mono** (Google Fonts, cargadas en `index.html`). Todo dato numérico —montos, fechas, números de activo, contadores— va con la clase global `.mono`, que además aplica `tabular-nums` para que las columnas de la tabla alineen dígito a dígito.
+- **Elevación antes que bordes duros.** Superficies con `--sh-1`/`--sh-2` y una línea `--line`, no bordes marcados.
+- **Movimiento entre 120 y 260ms** (`--dur-*` + `--ease`), siempre bajo `prefers-reduced-motion` (ya cubierto globalmente en `global.css`).
+- **Iconos SVG en línea**, con trazo, nunca emojis ni fuentes de iconos.
+
+Los controles de formulario (`input`, `select`, `textarea`) ya vienen estilizados desde `global.css`, incluido el anillo de foco y el chevron propio de los `<select>`. Un módulo solo debería ajustar tamaño y radio, no repetir el borde ni el foco.
+
+> Cuidado al tocar el JSX de `Badge`, `Button`, `ActivoFilters` (botón "✕ Limpiar filtros") y `BajaCard` (enlace "↺ Revertir baja"): hay pruebas que localizan esos nodos de texto completos o que verifican la clase del elemento que contiene el texto directamente. Envolver ese texto en otro elemento rompe los tests aunque la vista se siga viendo igual.
 
 ## Convenciones a mantener
 

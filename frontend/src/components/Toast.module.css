@@ -1,18 +1,41 @@
-.wrap { position: fixed; bottom: 24px; right: 24px; z-index: 95; }
+/* pointer-events: none en el contenedor para que la region viva vacia no tape
+   nada de la esquina inferior derecha cuando no hay aviso. */
+.wrap {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  z-index: 95;
+  pointer-events: none;
+}
+
 .toast {
   display: flex; align-items: center; gap: 11px;
-  background: var(--color-navy-dark); color: #fff;
-  border-radius: 10px; padding: 12px 16px;
-  box-shadow: 0 10px 30px rgba(11,37,69,.3);
-  min-width: 260px;
+  background: var(--ink);
+  color: #F4F4F3;
+  border-radius: var(--r-md);
+  padding: 12px 16px 12px 13px;
+  box-shadow: var(--sh-4), inset 0 1px 0 rgba(255, 255, 255, .08);
+  min-width: 260px; max-width: min(420px, calc(100vw - 48px));
+  pointer-events: auto;
+  animation: toastIn var(--dur-3) var(--ease);
 }
-.success { border: 1px solid #1C5138; }
-.error { border: 1px solid #7A2E2E; }
+
 .icon {
-  width: 22px; height: 22px; border-radius: 50%;
+  width: 21px; height: 21px; border-radius: 50%; flex: none;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700; flex: none;
+  color: #fff;
 }
-.success .icon { background: #2E8B57; }
-.error .icon { background: #B23A48; }
-.msg { font-size: 13px; font-weight: 500; }
+/* Verde y rojo apagados, legibles sobre tinta y lejos del fosforescente. */
+.success .icon { background: #2A7A57; }
+.error .icon { background: #A9463F; }
+
+.msg { font-size: 13px; font-weight: 400; line-height: 1.45; letter-spacing: -.005em; }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px) scale(.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 700px) {
+  .wrap { left: 14px; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .toast { min-width: 0; max-width: none; }
+}
