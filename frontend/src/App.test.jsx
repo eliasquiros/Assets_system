@@ -1,3 +1,10 @@
+/**
+ * El host decide que se sirve: la app solo se monta en el subdominio de una
+ * empresa. Se fija la URL de jsdom (en vez de sustituir window.location) para
+ * que history y react-router sigan funcionando de verdad.
+ *
+ * @vitest-environment-options { "url": "https://demo.acticr.com/" }
+ */
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { App } from './App'
