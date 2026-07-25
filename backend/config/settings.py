@@ -191,6 +191,19 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'login': '5/min',
     },
+    # CUANTOS proxies de confianza hay delante de la app. Es la pieza que hace
+    # que el throttle sirva de algo: sin esto, DRF usa la cabecera
+    # X-Forwarded-For COMPLETA como clave, y como el cliente la controla, basta
+    # variarla en cada intento para evadir el limite de login por completo
+    # (fuerza bruta sin freno). Con NUM_PROXIES=1, DRF toma la ULTIMA direccion
+    # de la cadena: la que inserto el proxy de Render al recibir la conexion, no
+    # la que el cliente escribio.
+    #
+    # El numero debe coincidir con la cantidad REAL de proxies: si algun dia se
+    # pone Cloudflare delante de Render, pasa a 2. Un valor mas alto del real
+    # vuelve a leer una posicion controlada por el atacante; uno mas bajo mete a
+    # todos los clientes en el mismo balde. Ver accounts/tests/test_throttling.py.
+    'NUM_PROXIES': int(os.environ.get('DJANGO_NUM_PROXIES', '1')),
 }
 
 SIMPLE_JWT = {
@@ -254,10 +267,34 @@ CORS_ALLOW_CREDENTIALS = True
 # el endpoint responde 503 y no ejecuta nada.
 INTERNAL_TASK_TOKEN = os.environ.get('DJANGO_INTERNAL_TASK_TOKEN', '')
 
-# Cache local para el throttle del login (DA08). En produccion se cambia el backend (DA07).
+# Cache respaldado por la base de datos (DA07/DA08). Aqui vive el contador de
+# intentos de login, y por eso NO puede ser LocMemCache: en memoria del proceso
+# cada worker de Gunicorn lleva su propia cuenta —el limite real se multiplica
+# por la cantidad de workers— y todo se pierde en cada reinicio o despliegue.
+# Un limite que no se puede afirmar con certeza no protege de nada.
+#
+# Se usa la base de datos y no un Redis aparte por una razon concreta: no agrega
+# un dominio de fallo nuevo. Si Postgres se cae la app ya no funciona igual; un
+# Redis caido, en cambio, romperia los endpoints con throttle por una pieza que
+# existe solo para contar intentos fallidos. Cuando haya varias instancias y el
+# volumen lo justifique, cambiar el BACKEND aqui es todo lo que hace falta.
+#
+# La tabla se crea por migracion en `companies` (SHARED_APP => solo en el schema
+# publico), no con `manage.py createcachetable`: asi no hay un paso manual que
+# se pueda olvidar en un despliegue.
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'cache_sistema',
+        'OPTIONS': {
+            # Por defecto Django solo tolera 300 filas vivas y, al pasarse, borra
+            # un tercio eligiendolas por ORDEN ALFABETICO de la clave (no por
+            # antiguedad): podria descartar el contador de una IP que esta justo
+            # en pleno ataque. Las filas del throttle pesan ~100 bytes y vencen
+            # al minuto, asi que un techo alto no cuesta nada (10k = ~1 MB en el
+            # peor caso) y deja ese borrado fuera de alcance con trafico real.
+            'MAX_ENTRIES': 10000,
+        },
     }
 }
 
