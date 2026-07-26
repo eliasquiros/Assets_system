@@ -53,6 +53,14 @@ class AuthFlowTest(TenantTestCase):
         self.assertEqual(access['samesite'], 'Lax')
         self.assertTrue(resp.cookies['refresh']['httponly'])
 
+    def test_refresh_dura_un_dia(self):
+        # La sesion "recordada" no debe sobrevivir mas de 1 dia sin actividad
+        # (antes eran 7). max-age es lo que el navegador de verdad respeta para
+        # decidir cuando descarta la cookie, asi que se prueba ahi y no solo
+        # leyendo la constante de settings.
+        resp = self._login()
+        self.assertEqual(resp.cookies['refresh']['max-age'], 24 * 60 * 60)
+
     def test_login_ok_actualiza_ultimo_acceso(self):
         with tenant_context(self.tenant):
             self.assertIsNone(Usuario.objects.get(username='ana').last_login)
