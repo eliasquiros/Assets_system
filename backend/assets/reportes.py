@@ -360,7 +360,7 @@ def construir_libro_financiero(corte, empresa_nombre):
               align=_AL_CEN, borde=None):
         """Fusiona la fila de la columna 1 a `hasta_col` y le pone el texto."""
         ws.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=hasta_col)
-        celda = ws.cell(row=fila, column=1, value=texto)
+        celda = _neutralizar_celda(ws.cell(row=fila, column=1, value=texto))
         celda.font = font
         celda.alignment = align
         for col in range(1, hasta_col + 1):
@@ -413,7 +413,7 @@ def construir_libro_financiero(corte, empresa_nombre):
     for g in grupos.values():
         r += 1
         ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=2)
-        etiqueta = ws.cell(row=r, column=1, value=_cat_label(g['cat']))
+        etiqueta = _neutralizar_celda(ws.cell(row=r, column=1, value=_cat_label(g['cat'])))
         etiqueta.font = _F_DATO_RESUMEN
         etiqueta.alignment = _AL_IZQ
         cant = ws.cell(row=r, column=3, value=len(g['filas']))
@@ -455,7 +455,7 @@ def construir_libro_financiero(corte, empresa_nombre):
         for datos in g['filas']:
             r += 1
             for col, valor in enumerate(datos, start=1):
-                celda = ws.cell(row=r, column=col, value=valor)
+                celda = _neutralizar_celda(ws.cell(row=r, column=col, value=valor))
                 celda.font = _F_DATO
                 if col in _DET_FECHA:
                     celda.number_format = _FMT_FECHA_REF
