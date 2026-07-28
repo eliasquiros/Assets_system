@@ -21,6 +21,21 @@ from .tokens import activar_tenant_desde_raw, crear_refresh
 CREDENCIALES_INVALIDAS = 'Usuario o contraseña incorrectos'
 
 
+def _gastar_hash_dummy(password):
+    """Corre el hasher sobre un usuario vacio para que las rutas de fallo del
+    login cuesten lo mismo que la ruta con usuario real.
+
+    Sin esto el `or` del chequeo de credenciales cortocircuita: solo se llega a
+    check_password() cuando el usuario existe y esta activo, y como PBKDF2 corre
+    1.2M de iteraciones esa rama tarda cientos de ms contra el par de ms de una
+    consulta fallida. El 401 identico (RS-002/DA16) no sirve de nada si el reloj
+    delata la diferencia: midiendo el tiempo se enumera que empresas existen y
+    que usuarios estan activos dentro de cada una. Es la misma defensa que
+    django.contrib.auth.backends.ModelBackend, que aqui no aplica porque el
+    login nunca llama a authenticate()."""
+    Usuario().set_password(password)
+
+
 def _empresa_por_hint(hint):
     """Resuelve la empresa por el slug (hint) que el frontend deriva de su
     subdominio. Se consulta en el schema publico. Devuelve None si no existe o
@@ -55,6 +70,7 @@ class LoginView(APIView):
         # no se distingue empresa inexistente, usuario inexistente ni contrasena
         # mala (RS-002/DA16, evita enumeracion).
         if empresa is None:
+            _gastar_hash_dummy(password)
             return Response({'detail': CREDENCIALES_INVALIDAS}, status=status.HTTP_401_UNAUTHORIZED)
 
         with tenant_context(empresa):
@@ -62,7 +78,14 @@ class LoginView(APIView):
                 user = Usuario.objects.get(username=username)
             except Usuario.DoesNotExist:
                 user = None
-            if user is None or not user.is_active or not user.check_password(password):
+            # Se evita el cortocircuito a proposito: toda rama de fallo paga un
+            # hash, igual que la del usuario real (ver _gastar_hash_dummy).
+            if user is not None and user.is_active:
+                password_ok = user.check_password(password)
+            else:
+                _gastar_hash_dummy(password)
+                password_ok = False
+            if not password_ok:
                 return Response(
                     {'detail': CREDENCIALES_INVALIDAS},
                     status=status.HTTP_401_UNAUTHORIZED,

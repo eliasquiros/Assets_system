@@ -7,6 +7,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.throttling import ScopedRateThrottle
 from accounts.models import Usuario
 from accounts.tokens import crear_refresh
+from accounts.views import _gastar_hash_dummy
 from companies.models import Domain, Empresa
 
 
@@ -153,6 +154,74 @@ class AuthFlowTest(TenantTestCase):
         self.client.cookies['refresh'] = refresh_value
         r = self.client.post('/api/auth/refresh/')
         self.assertEqual(r.status_code, 401)
+
+
+class LoginTimingTest(TenantTestCase):
+    """El 401 identico no basta si el tiempo de respuesta delata la diferencia:
+    solo la rama con usuario real y activo llegaba a check_password (PBKDF2,
+    1.2M iteraciones), asi que midiendo el reloj se enumeraban empresas y
+    usuarios activos. Toda ruta de fallo debe pagar un hash equivalente."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with tenant_context(cls.tenant):
+            Usuario.objects.create_user(username='ana', password='secreta123')
+            Usuario.objects.create_user(username='inactivo', password='secreta123',
+                                        is_active=False)
+        cls.slug = 'timingco'
+        with schema_context(get_public_schema_name()):
+            cls.tenant.subdominio = cls.slug
+            cls.tenant.save(update_fields=['subdominio'])
+
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+
+    def _login(self, usuario, password, empresa):
+        return self.client.post(
+            '/api/auth/login/',
+            {'usuario': usuario, 'password': password, 'empresa': empresa},
+            format='json',
+        )
+
+    def test_el_hash_dummy_realmente_hashea(self):
+        # Si el helper no corriera el hasher, igualar las ramas no serviria de
+        # nada: seguirian costando tiempos distintos.
+        with patch.object(Usuario, 'set_password') as set_password:
+            _gastar_hash_dummy('loquesea')
+        set_password.assert_called_once_with('loquesea')
+
+    def test_empresa_inexistente_gasta_un_hash(self):
+        with patch('accounts.views._gastar_hash_dummy') as dummy:
+            resp = self._login('ana', 'secreta123', 'no-existe')
+        self.assertEqual(resp.status_code, 401)
+        dummy.assert_called_once()
+
+    def test_usuario_inexistente_gasta_un_hash(self):
+        with patch('accounts.views._gastar_hash_dummy') as dummy:
+            resp = self._login('fantasma', 'loquesea', self.slug)
+        self.assertEqual(resp.status_code, 401)
+        dummy.assert_called_once()
+
+    def test_usuario_inactivo_gasta_un_hash(self):
+        # is_active=False cortocircuitaba antes de check_password: era la rama
+        # que distinguia "cuenta existe pero esta desactivada".
+        with patch('accounts.views._gastar_hash_dummy') as dummy:
+            resp = self._login('inactivo', 'secreta123', self.slug)
+        self.assertEqual(resp.status_code, 401)
+        dummy.assert_called_once()
+
+    def test_password_mala_de_usuario_real_no_gasta_hash_extra(self):
+        # Esa rama ya paga su hash en check_password; duplicarlo la haria el
+        # doble de lenta y reabriria el oraculo por el otro lado.
+        with patch('accounts.views._gastar_hash_dummy') as dummy:
+            resp = self._login('ana', 'equivocada', self.slug)
+        self.assertEqual(resp.status_code, 401)
+        dummy.assert_not_called()
+
+    def test_login_correcto_sigue_funcionando(self):
+        self.assertEqual(self._login('ana', 'secreta123', self.slug).status_code, 200)
 
 
 class AislamientoEntreEmpresasTest(TenantTestCase):
