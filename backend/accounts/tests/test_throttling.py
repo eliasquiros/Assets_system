@@ -19,6 +19,8 @@ from django_tenants.utils import get_public_schema_name, schema_context, tenant_
 from rest_framework.test import APIClient
 
 from accounts.models import Usuario
+from accounts.tokens import crear_refresh
+from companies.models import Domain, Empresa
 
 # Tabla donde se lleva la cuenta de intentos (ver companies/migrations).
 TABLA_CACHE = 'cache_sistema'
@@ -144,3 +146,91 @@ class ThrottlePersistenteTest(_LoginBase):
             )
             schemas = [fila[0] for fila in cur.fetchall()]
         self.assertEqual(schemas, ['public'])
+
+
+class ReportesThrottleTest(TenantTestCase):
+    """Cada reporte arma un libro Excel recorriendo todos los activos vigentes:
+    es lo mas caro que sirve la API y hasta ahora no tenia techo alguno. Se
+    limita a 3/min, con un balde por tipo de reporte."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with tenant_context(cls.tenant):
+            cls.user = Usuario.objects.create_user(username='rep', password='secreta123')
+        cls.host = cls.tenant.get_primary_domain().domain
+
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+        with tenant_context(self.tenant):
+            self.client.cookies['access'] = str(crear_refresh(self.user).access_token)
+
+    def _auditoria(self):
+        return self.client.get(
+            '/api/reportes/auditoria/?anio=2024', HTTP_HOST=self.host).status_code
+
+    def _financiero(self):
+        return self.client.get(
+            '/api/reportes/financiero/?corte=2024-06', HTTP_HOST=self.host).status_code
+
+    def test_el_cuarto_reporte_de_auditoria_del_minuto_se_bloquea(self):
+        codigos = [self._auditoria() for _ in range(5)]
+        self.assertEqual(codigos[:3], [200, 200, 200])
+        self.assertEqual(codigos[3:], [429, 429])
+
+    def test_el_cuarto_reporte_financiero_del_minuto_se_bloquea(self):
+        codigos = [self._financiero() for _ in range(5)]
+        self.assertEqual(codigos[:3], [200, 200, 200])
+        self.assertEqual(codigos[3:], [429, 429])
+
+    def test_los_dos_reportes_no_comparten_balde(self):
+        # Agotar auditoria no debe dejar sin financiero: son baldes separados.
+        for _ in range(4):
+            self._auditoria()
+        self.assertEqual(self._financiero(), 200)
+
+
+class AislamientoDelThrottleEntreEmpresasTest(TenantTestCase):
+    """DRF identifica al cliente autenticado con request.user.pk pelado. Como
+    cada empresa vive en su schema y los ids arrancan en 1 en todas, el usuario
+    1 de una y el 1 de otra caerian en el MISMO balde: una empresa activa
+    dejaria a otra sin reportes sin tener relacion con ella. RS-002 aplicado a
+    la disponibilidad."""
+
+    def test_una_empresa_no_consume_el_cupo_de_otra(self):
+        cache.clear()
+        with tenant_context(self.tenant):
+            user_a = Usuario.objects.create_user(username='userA', password='secreta123')
+
+        with schema_context(get_public_schema_name()):
+            empresa_b = Empresa(schema_name='empresa_b_throttle', nombre='B',
+                                activa=True, subdominio='bthr')
+            empresa_b.save()
+            Domain.objects.create(domain='b-thr.localhost', tenant=empresa_b,
+                                  is_primary=True)
+        with tenant_context(empresa_b):
+            user_b = Usuario.objects.create_user(username='userB', password='secreta123')
+            token_b = str(crear_refresh(user_b).access_token)
+        # Sin la colision de id el test no probaria nada.
+        self.assertEqual(user_a.id, user_b.id)
+
+        # La empresa A agota su cupo de auditoria.
+        cliente_a = APIClient()
+        with tenant_context(self.tenant):
+            cliente_a.cookies['access'] = str(crear_refresh(user_a).access_token)
+        host_a = self.tenant.get_primary_domain().domain
+        for _ in range(4):
+            cliente_a.get('/api/reportes/auditoria/?anio=2024', HTTP_HOST=host_a)
+        self.assertEqual(
+            cliente_a.get('/api/reportes/auditoria/?anio=2024',
+                          HTTP_HOST=host_a).status_code,
+            429, 'La empresa A deberia estar bloqueada tras agotar su cupo')
+
+        # La empresa B, con un usuario del mismo id, no debe estar afectada.
+        cliente_b = APIClient()
+        cliente_b.cookies['access'] = token_b
+        self.assertEqual(
+            cliente_b.get('/api/reportes/auditoria/?anio=2024',
+                          HTTP_HOST='b-thr.localhost').status_code,
+            200, 'La empresa B fue limitada por el consumo de la empresa A')

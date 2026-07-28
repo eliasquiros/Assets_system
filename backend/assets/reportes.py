@@ -199,6 +199,11 @@ def _dar_formato(ws):
 class ReporteAuditoriaView(APIView):
     """GET /api/reportes/auditoria/?anio=<YYYY> — descarga el .xlsx de auditoria."""
 
+    # Armar el libro recorre todos los activos vigentes al corte: 3/min por
+    # usuario y empresa frena el spam sin estorbar a quien lo descarga un par
+    # de veces mientras revisa. Balde propio, separado del financiero.
+    throttle_scope = 'reporte_auditoria'
+
     def get(self, request):
         anio = _validar_anio(request.query_params.get('anio'))
         wb = construir_libro(anio)
@@ -513,6 +518,8 @@ def construir_libro_financiero(corte, empresa_nombre):
 class ReporteFinancieroView(APIView):
     """GET /api/reportes/financiero/?corte=<YYYY-MM> — descarga el .xlsx del
     reporte financiero al ultimo dia del mes solicitado."""
+
+    throttle_scope = 'reporte_financiero'
 
     def get(self, request):
         corte = _validar_corte(request.query_params.get('corte'))

@@ -185,11 +185,30 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    # ScopedRateThrottle SOLO limita las vistas que declaran throttle_scope: en
+    # las demas su allow_request devuelve True de entrada. Con el solo, el
+    # limite existia unicamente en el login y el resto del API quedaba sin
+    # techo — medido contra la app: 30 peticiones seguidas a /auth/refresh/,
+    # /auth/me/ y /activos/ sin un solo 429. AnonRateThrottle y
+    # UserRateThrottle ponen ese piso; las tres clases conviven porque la
+    # scoped no estorba donde no hay scope.
+    #
+    # Las variantes Tenant* existen porque DRF usa request.user.pk pelado como
+    # clave, y aqui los ids se repiten entre schemas (ver accounts/throttling).
     'DEFAULT_THROTTLE_CLASSES': (
-        'rest_framework.throttling.ScopedRateThrottle',
+        'accounts.throttling.TenantScopedRateThrottle',
+        'rest_framework.throttling.AnonRateThrottle',
+        'accounts.throttling.TenantUserRateThrottle',
     ),
     'DEFAULT_THROTTLE_RATES': {
         'login': '5/min',
+        'anon': '30/min',
+        'user': '300/min',
+        # Cada reporte arma un libro Excel completo recorriendo todos los
+        # activos vigentes: es lo mas caro que sirve la API. Baldes separados
+        # para que pedir uno no gaste el cupo del otro.
+        'reporte_auditoria': '3/min',
+        'reporte_financiero': '3/min',
     },
     # CUANTOS proxies de confianza hay delante de la app. Es la pieza que hace
     # que el throttle sirva de algo: sin esto, DRF usa la cabecera
