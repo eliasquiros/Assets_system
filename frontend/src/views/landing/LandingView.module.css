@@ -654,6 +654,9 @@
 .footerBrand { display: inline-flex; align-items: center; gap: 9px; margin-right: auto; font-weight: 650; }
 .footerBrand svg { width: 24px; height: 24px; }
 .footerNote { color: var(--ink-4); font-size: .8125rem; }
+.footerLegal { display: flex; flex-wrap: wrap; gap: 18px; }
+.footerLegalLink { color: var(--ink-3); font-size: .8125rem; font-weight: 600; }
+.footerLegalLink:hover { color: var(--accent); }
 
 /* ---- Modal de acceso ----------------------------------------------------- */
 .modalOverlay {
@@ -721,6 +724,9 @@
 }
 
 .modalHint { margin: 10px 0 0; color: var(--ink-4); font-size: .8125rem; line-height: 1.5; }
+.modalLegal { margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--line-soft); color: var(--ink-4); font-size: .75rem; line-height: 1.5; }
+.modalLegal a { color: var(--ink-3); text-decoration: underline; text-underline-offset: 2px; }
+.modalLegal a:hover { color: var(--accent); }
 .modalActions { display: flex; gap: 10px; margin-top: 22px; }
 .modalActions .btn { flex: 1; }
 

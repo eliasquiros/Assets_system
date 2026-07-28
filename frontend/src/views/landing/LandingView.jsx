@@ -448,8 +448,13 @@ export function LandingView() {
           <span className={s.footerBrand}>
             <IconoMarca size={24} /> Acticr
           </span>
+          <nav className={s.footerLegal} aria-label="Legal">
+            <a className={s.footerLegalLink} href="/privacidad">Privacidad</a>
+            <a className={s.footerLegalLink} href="/terminos">Términos y condiciones</a>
+            <a className={s.footerLegalLink} href="/cookies">Cookies</a>
+          </nav>
           <span className={s.footerNote}>
-            © {new Date().getFullYear()} Acticr · Gestión de activos fijos
+            © {new Date().getFullYear()} Despacho Álvarez Corella · Acticr
           </span>
         </div>
       </footer>

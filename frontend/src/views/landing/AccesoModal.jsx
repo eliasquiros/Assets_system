@@ -73,6 +73,14 @@ export function AccesoModal({ onCerrar }) {
             activar tu cuenta.
           </p>
 
+          <p className={s.modalLegal}>
+            Al continuar, aceptas los{' '}
+            <a href="/terminos" target="_blank" rel="noopener noreferrer">Términos y Condiciones</a>
+            {' '}y la{' '}
+            <a href="/privacidad" target="_blank" rel="noopener noreferrer">Política de Privacidad</a>
+            {' '}de Acticr.
+          </p>
+
           <div className={s.modalActions}>
             <button type="button" className={`${s.btn} ${s.btnQuiet}`} onClick={onCerrar}>
               Cancelar
