@@ -330,6 +330,97 @@ class TokenTenantClaimTest(TenantTestCase):
         self.assertEqual(resp.status_code, 401)
 
 
+class AuthEndpointsCSRFTest(TenantTestCase):
+    """Los tres endpoints de auth declaran authentication_classes=[], que los
+    deja fuera de CookieJWTAuthentication — donde vivia el unico chequeo CSRF —
+    y APIView.as_view() los envuelve en csrf_exempt, asi que CsrfViewMiddleware
+    tampoco los cubria. Con SameSite=None en produccion eso permitia que una
+    pagina ajena posteara aqui: meter a la victima en el tenant del atacante
+    (login), rotarle la sesion (refresh) o cerrarsela (logout).
+
+    APIClient() no valida CSRF por defecto, por eso aqui se instancia con
+    enforce_csrf_checks=True: sin eso estos tests pasarian sin probar nada."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with tenant_context(cls.tenant):
+            Usuario.objects.create_user(username='ana', password='secreta123')
+        cls.slug = 'csrfco'
+        with schema_context(get_public_schema_name()):
+            cls.tenant.subdominio = cls.slug
+            cls.tenant.save(update_fields=['subdominio'])
+
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient(enforce_csrf_checks=True)
+
+    def _cuerpo_login(self, password='secreta123'):
+        return {'usuario': 'ana', 'password': password, 'empresa': self.slug}
+
+    def _sembrar_csrf(self):
+        """Hace el GET de bootstrap y devuelve el token, como haria el SPA."""
+        resp = self.client.get('/api/auth/csrf/')
+        self.assertEqual(resp.status_code, 204)
+        return self.client.cookies['csrftoken'].value
+
+    def test_login_sin_token_csrf_es_rechazado(self):
+        resp = self.client.post('/api/auth/login/', self._cuerpo_login(), format='json')
+        self.assertEqual(resp.status_code, 403)
+        # Y no se emitio sesion alguna.
+        self.assertNotIn('access', resp.cookies)
+
+    def test_login_con_token_csrf_funciona(self):
+        token = self._sembrar_csrf()
+        resp = self.client.post('/api/auth/login/', self._cuerpo_login(),
+                                format='json', HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('access', resp.cookies)
+
+    def test_refresh_sin_token_csrf_es_rechazado(self):
+        token = self._sembrar_csrf()
+        self.client.post('/api/auth/login/', self._cuerpo_login(),
+                         format='json', HTTP_X_CSRFTOKEN=token)
+        resp = self.client.post('/api/auth/refresh/')
+        self.assertEqual(resp.status_code, 403)
+
+    def test_logout_sin_token_csrf_no_revoca_la_sesion(self):
+        token = self._sembrar_csrf()
+        self.client.post('/api/auth/login/', self._cuerpo_login(),
+                         format='json', HTTP_X_CSRFTOKEN=token)
+        refresh_previo = self.client.cookies['refresh'].value
+
+        resp = self.client.post('/api/auth/logout/')
+        self.assertEqual(resp.status_code, 403)
+
+        # Lo que importa no es el 403 sino que el refresh token siga sirviendo:
+        # el ataque buscaba revocarlo del lado del servidor.
+        self.client.cookies['refresh'] = refresh_previo
+        r = self.client.post('/api/auth/refresh/',
+                             HTTP_X_CSRFTOKEN=self.client.cookies['csrftoken'].value)
+        self.assertEqual(r.status_code, 200)
+
+    def test_el_token_csrf_rota_al_iniciar_sesion(self):
+        # Anti-fijacion: el valor que traia el visitante (que un tercero pudo
+        # haberle sembrado) deja de ser valido en cuanto la sesion existe.
+        previo = self._sembrar_csrf()
+        resp = self.client.post('/api/auth/login/', self._cuerpo_login(),
+                                format='json', HTTP_X_CSRFTOKEN=previo)
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotEqual(resp.cookies['csrftoken'].value, previo)
+
+    def test_el_bootstrap_de_csrf_no_exige_sesion(self):
+        resp = self.client.get('/api/auth/csrf/')
+        self.assertEqual(resp.status_code, 204)
+        self.assertIn('csrftoken', resp.cookies)
+
+    def test_me_por_get_sigue_sin_exigir_csrf(self):
+        token = self._sembrar_csrf()
+        self.client.post('/api/auth/login/', self._cuerpo_login(),
+                         format='json', HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(self.client.get('/api/auth/me/').status_code, 200)
+
+
 class CookieCSRFTest(TenantTestCase):
     """CookieJWTAuthentication exige CSRF en metodos no seguros y lo omite en
     los seguros — se prueba la clase directamente porque esta feature aun no

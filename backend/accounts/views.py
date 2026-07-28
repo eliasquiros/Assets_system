@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.db import connection
-from django.middleware.csrf import get_token
+from django.middleware.csrf import get_token, rotate_token
 from django.utils import timezone
 from django_tenants.utils import tenant_context
 from rest_framework import status
@@ -13,6 +13,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from companies.models import Empresa
+from .authentication import _enforce_csrf
 from .cookies import clear_auth_cookies, set_auth_cookies
 from .models import Usuario
 from .serializers import LoginSerializer
@@ -49,6 +50,22 @@ def _empresa_por_hint(hint):
         return None
 
 
+class CsrfView(APIView):
+    """GET /api/auth/csrf/ — siembra la cookie csrftoken.
+
+    Los endpoints de auth exigen CSRF, pero un visitante que todavia no inicio
+    sesion no tiene la cookie: este GET es el bootstrap que se la entrega antes
+    del primer POST a /login/. Es un metodo seguro y no expone nada — el token
+    CSRF no es un secreto de autenticacion, su valor esta en que un origen
+    ajeno no puede leerlo para reenviarlo en el header."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        get_token(request)   # marca a CsrfViewMiddleware para setear la cookie
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class LoginView(APIView):
     """POST /api/auth/login/ — autentica contra el usuario de la empresa
     indicada por el hint de subdominio y setea el JWT (sellado con esa empresa)
@@ -60,6 +77,14 @@ class LoginView(APIView):
     throttle_scope = 'login'
 
     def post(self, request):
+        # authentication_classes=[] deja fuera a CookieJWTAuthentication, que es
+        # donde vive el unico chequeo CSRF del proyecto, y APIView.as_view() se
+        # envuelve en csrf_exempt, asi que CsrfViewMiddleware tampoco cubre esta
+        # vista. Sin esta llamada explicita, un form cross-site puede postear
+        # aqui las credenciales del atacante y dejar a la victima trabajando
+        # dentro del tenant de el (la cookie va con SameSite=None en prod).
+        _enforce_csrf(request)
+
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         username = serializer.validated_data['usuario']
@@ -101,6 +126,10 @@ class LoginView(APIView):
             response = Response({'username': user.username, 'empresa': empresa.nombre})
             set_auth_cookies(response, refresh.access_token, refresh)
 
+        # Se rota el token al autenticar, igual que el login() de Django: el
+        # valor que el visitante traia (posiblemente sembrado por un tercero)
+        # deja de servir en cuanto la sesion existe.
+        rotate_token(request)
         get_token(request)   # marca a CsrfViewMiddleware para setear la cookie csrftoken
         return response
 
@@ -114,6 +143,10 @@ class RefreshView(APIView):
     authentication_classes = []
 
     def post(self, request):
+        # Mismo hueco que en LoginView: sin esto, una pagina ajena puede rotar
+        # la sesion de la victima a voluntad.
+        _enforce_csrf(request)
+
         raw = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
         if not raw:
             return Response({'detail': 'Sesión no encontrada'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -144,6 +177,10 @@ class LogoutView(APIView):
     authentication_classes = []
 
     def post(self, request):
+        # Sin esto, cualquier pagina que la victima abra puede revocarle el
+        # refresh token del lado del servidor sin que ella haga nada.
+        _enforce_csrf(request)
+
         raw = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
         if raw:
             try:

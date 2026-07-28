@@ -57,6 +57,7 @@ describe('apiFetch', () => {
   })
 
   it('en un 401 intenta refrescar la sesión y reintenta la petición original', async () => {
+    document.cookie = 'csrftoken=abc123'   // sesión ya iniciada: la cookie existe
     const mockFetch = vi.fn()
       .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({ detail: 'expirado' }) })
       .mockResolvedValueOnce({ ok: true, status: 200 })
@@ -71,6 +72,7 @@ describe('apiFetch', () => {
   })
 
   it('si el refresh también falla, propaga el ApiError original y dispara auth:expired', async () => {
+    document.cookie = 'csrftoken=abc123'   // sesión ya iniciada: la cookie existe
     const mockFetch = vi.fn()
       .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({ detail: 'Sesión expirada' }) })
       .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) })
@@ -83,6 +85,23 @@ describe('apiFetch', () => {
     expect(onExpired).toHaveBeenCalledTimes(1)
 
     window.removeEventListener('auth:expired', onExpired)
+  })
+
+  it('resiembra el csrftoken antes de refrescar si la cookie se perdió', async () => {
+    // /auth/refresh/ exige CSRF. Si la cookie caducó mientras el refresh
+    // httpOnly sigue vivo, sin resembrarla el POST daría 403 y cerraría la
+    // sesión sin necesidad.
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({ detail: 'expirado' }) })
+      .mockResolvedValueOnce({ ok: true, status: 204 })   // GET /auth/csrf/
+      .mockResolvedValueOnce({ ok: true, status: 200 })   // POST /auth/refresh/
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ items: [] }) })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await apiFetch('/activos/')
+
+    expect(mockFetch.mock.calls[1][0]).toBe('/api/auth/csrf/')
+    expect(mockFetch.mock.calls[2][0]).toBe('/api/auth/refresh/')
   })
 
   it('un 401 en /auth/login/ no intenta refrescar', async () => {
