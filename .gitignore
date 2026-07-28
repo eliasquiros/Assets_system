@@ -34,3 +34,12 @@ dist-ssr/
 
 # Configuracion local de Claude Code, incluye habilitacion de plugins como superpowers
 .claude/settings.local.json
+
+# Instalacion de graphify (grafo de conocimiento del codigo), scopeada solo a
+# este proyecto: venv dedicado, skill nativo, registro en CLAUDE.md y su salida.
+.venv-graphify/
+.claude/skills/graphify/
+.claude/CLAUDE.md
+.claude/settings.json.graphify-bak
+/CLAUDE.md
+graphify-out/
