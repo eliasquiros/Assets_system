@@ -19,7 +19,7 @@ node_modules/
 dist/
 dist-ssr/
 *.local
-
+.claude
 # Instalacion del plugin GSD (get-shit-done)
 .claude/agents
 .claude/get-shit-done/
