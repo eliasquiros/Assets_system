@@ -26,13 +26,26 @@ const NO_REFRESH_RETRY = new Set(['/auth/login/', '/auth/refresh/', '/auth/logou
 
 let refreshPromise = null
 
+// /auth/refresh/ exige CSRF. Si la cookie csrftoken se perdió (caducó o el
+// usuario limpió el sitio) mientras el refresh httpOnly sigue vivo, el POST
+// se rechazaría con 403 y la sesión se cerraría sin necesidad: se resiembra.
+async function asegurarCsrf() {
+  if (getCookie('csrftoken')) return
+  try {
+    await fetch(`${BASE_URL}/auth/csrf/`, { credentials: 'include' })
+  } catch {
+    // sin red no hay nada que refrescar; el POST siguiente falla igual
+  }
+}
+
 function refreshSession() {
   if (!refreshPromise) {
-    refreshPromise = fetch(`${BASE_URL}/auth/refresh/`, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': getCookie('csrftoken') || '' },
-      credentials: 'include',
-    })
+    refreshPromise = asegurarCsrf()
+      .then(() => fetch(`${BASE_URL}/auth/refresh/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') || '' },
+        credentials: 'include',
+      }))
       .then((r) => r.ok)
       .catch(() => false)
       .finally(() => { refreshPromise = null })
