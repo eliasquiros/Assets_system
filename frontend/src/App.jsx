@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ThemeProvider } from './context/ThemeContext'
 import { ToastProvider } from './context/ToastContext'
 import { AppLayout } from './layout/AppLayout'
 import { esHostDeMarca } from './lib/host'
@@ -53,7 +54,7 @@ export function App() {
               <Route path="/privacidad" element={<PoliticaPrivacidadView />} />
               <Route path="/terminos" element={<TerminosServicioView />} />
               <Route path="/cookies" element={<PoliticaCookiesView />} />
-              <Route path="/" element={<RequireAuth><AppLayout /></RequireAuth>}>
+              <Route path="/" element={<RequireAuth><ThemeProvider><AppLayout /></ThemeProvider></RequireAuth>}>
                 <Route index element={<Navigate to="/activos" replace />} />
                 <Route path="activos/*" element={<ActivosView />} />
                 <Route path="reportes" element={<ReportesView />} />

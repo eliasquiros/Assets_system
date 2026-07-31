@@ -1,4 +1,5 @@
 import { MarcaActicr } from '../components/MarcaActicr'
+import { ThemeToggle } from '../components/ThemeToggle'
 import { useAuth } from '../context/AuthContext'
 import styles from './AppHeader.module.css'
 
@@ -30,6 +31,7 @@ export function AppHeader() {
           </div>
           <div className={styles.avatar}>{iniciales}</div>
         </div>
+        <ThemeToggle />
         <button type="button" className={styles.logout} onClick={logout}>Salir</button>
       </div>
     </header>

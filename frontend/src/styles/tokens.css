@@ -30,13 +30,28 @@
   --line-soft: #EFEEEB;
   --line-strong: #D2D1CC;
 
-  /* ---- Acento: indigo profundo. Foco, enlaces, tab activo. -------------- */
-  --accent: #2F4C86;
-  --accent-hover: #263E6E;
-  --accent-press: #1E3358;
-  --accent-soft: #EEF2FA;
-  --accent-line: #D2DCEF;
+  /* ---- Acento: gris-azulado apagado, misma familia que el landing (su
+     --color-accent #c9d1dc, ahi claro porque vive sobre fondo oscuro). Aqui
+     se oscurece para cumplir AA sobre blanco (~8.7:1) sin perder el caracter
+     "acero", nada de indigo saturado. Foco, enlaces, tab activo. -------- */
+  --accent: #3E4C5E;
+  --accent-hover: #33404F;
+  --accent-press: #29333F;
+  --accent-soft: #EEF1F3;
+  --accent-line: #D8DEE3;
   --accent-ink: #FFFFFF;
+
+  /* ---- Chrome: panel solido de marca (header, boton primario, toast,
+     insignia oscura, panel financiero). Tomado literal del gradiente del
+     landing (#070c1a, su parada mas "azul" antes de llegar al negro): el
+     mismo cambio negro -> azul oscuro que el acento, aplicado a las
+     superficies solidas en vez de al foco/enlaces. Separado de --ink (color
+     de TEXTO) porque en dark mode el texto se aclara pero este panel debe
+     seguir leyendose como superficie solida, no invertirse a blanco. ----- */
+  --chrome: #070C1A;
+  --chrome-hover: #101A30;
+  --chrome-press: #04070E;
+  --chrome-ink: #FFFFFF;
 
   /* ---- Estado: apagados a proposito, nunca fosforescentes --------------- */
   --ok-fg: #1B5E43;   --ok-bg: #E8F2EC;   --ok-line: #C6DFD1;
@@ -104,4 +119,65 @@
   --color-neutral-bg: var(--mute-bg);
   --color-neutral-text: var(--mute-fg);
   --color-neutral-border: var(--mute-line);
+}
+
+/* =============================================================================
+   Dark mode — solo dentro del sistema (post-login), nunca en login/landing.
+   El atributo [data-theme="dark"] lo pone ThemeProvider en <html> mientras el
+   area autenticada esta montada y lo quita al salir (logout, ir a /login).
+   Paleta tomada del landing (fondo casi negro, texto casi blanco, acento
+   gris-azulado #c9d1dc que ahi es claro porque vive sobre oscuro), pero con
+   la logica convencional de un dark mode de aplicacion: el header/boton
+   primario NO se invierten a blanco (eso se ve bien en una pagina de
+   marketing, no en una app de datos) sino que quedan un tono mas claros que
+   el fondo, como cualquier shell de app oscura.
+   ========================================================================== */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #06080F;
+  --canvas-2: #0B0E16;
+  --surface: #10141D;
+  --surface-sunk: #0B0E16;
+
+  --ink: #F1F3F6;
+  --ink-2: #C7CBD3;
+  --ink-3: #9AA0AA;
+  --ink-4: #6F7580;
+
+  --line: rgba(241, 243, 246, .12);
+  --line-soft: rgba(241, 243, 246, .07);
+  --line-strong: rgba(241, 243, 246, .20);
+
+  /* El acento del landing funciona directo aqui: ya esta pensado para fondo
+     oscuro, sin necesidad de oscurecerlo como en claro. */
+  --accent: #C9D1DC;
+  --accent-hover: #DCE2E9;
+  --accent-press: #B0BAC7;
+  --accent-soft: rgba(201, 209, 220, .12);
+  --accent-line: rgba(201, 209, 220, .30);
+  --accent-ink: #06080F;
+
+  /* Chrome: un tono mas claro que el canvas, no invertido — header/boton
+     primario/toast siguen leyendose como panel solido sobre el fondo. */
+  --chrome: #12161F;
+  --chrome-hover: #1B212D;
+  --chrome-press: #232B38;
+  --chrome-ink: #F1F3F6;
+
+  /* Estado: mismos roles, aclarados para leerse sobre fondo oscuro sin
+     volverse fosforescentes (mismo criterio "apagado" que en claro). */
+  --ok-fg: #7FBFA0;   --ok-bg: rgba(76, 148, 110, .16);   --ok-line: rgba(76, 148, 110, .32);
+  --warn-fg: #D9B36C; --warn-bg: rgba(198, 150, 60, .16); --warn-line: rgba(198, 150, 60, .32);
+  --err-fg: #E08A82;  --err-bg: rgba(190, 90, 80, .16);   --err-line: rgba(190, 90, 80, .32);
+  --mute-fg: #B9BEC6; --mute-bg: rgba(255, 255, 255, .06); --mute-line: rgba(255, 255, 255, .14);
+
+  --sh-1: 0 1px 2px rgba(0, 0, 0, .4), 0 1px 1px rgba(0, 0, 0, .3);
+  --sh-2: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 10px -2px rgba(0, 0, 0, .35);
+  --sh-3: 0 2px 4px rgba(0, 0, 0, .4), 0 12px 28px -6px rgba(0, 0, 0, .5);
+  --sh-4: 0 8px 20px -4px rgba(0, 0, 0, .55), 0 28px 64px -12px rgba(0, 0, 0, .65);
+  --sh-raise: inset 0 1px 0 rgba(255, 255, 255, .08), 0 1px 2px rgba(0, 0, 0, .5);
+
+  --ring: 0 0 0 3px rgba(201, 209, 220, .22);
+  --ring-err: 0 0 0 3px rgba(224, 138, 130, .22);
 }

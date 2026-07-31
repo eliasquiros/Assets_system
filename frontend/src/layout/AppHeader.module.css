@@ -2,7 +2,7 @@
    los datos y aporta la sensacion de solidez sin recurrir a color saturado. */
 .header {
   position: fixed; top: 0; left: 0; right: 0; height: var(--h-header);
-  background: var(--ink);
+  background: var(--chrome);
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px;
   padding: 0 var(--pad-x);

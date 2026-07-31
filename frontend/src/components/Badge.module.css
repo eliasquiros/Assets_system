@@ -22,5 +22,5 @@
 .success { background: var(--ok-bg); color: var(--ok-fg); border-color: var(--ok-line); }
 .warning { background: var(--warn-bg); color: var(--warn-fg); border-color: var(--warn-line); }
 .neutral { background: var(--mute-bg); color: var(--mute-fg); border-color: var(--mute-line); }
-.dark { background: var(--ink); color: #fff; border-color: var(--ink); }
+.dark { background: var(--chrome); color: #fff; border-color: var(--chrome); }
 .dark .dot { box-shadow: 0 0 0 2.5px rgba(255, 255, 255, .18); }
