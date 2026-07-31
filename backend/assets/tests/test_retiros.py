@@ -12,7 +12,9 @@ import shutil
 import tempfile
 from datetime import date, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
+from django.core.files.storage import FileSystemStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.test import override_settings
@@ -26,7 +28,9 @@ from accounts.tokens import crear_refresh
 from assets.depreciacion import calcular_depreciacion
 from assets.models import Activo, Categoria, Localizacion, Movimiento, Retiro
 from assets.reportes import _agrupar_por_categoria
+from assets.retiros import TAMANO_MAX_ARCHIVO
 from assets.tareas import promover_retiros_definitivos
+from config.almacenamiento import TTL_ENLACE_SEGUNDOS, ErrorDeAlmacenamiento
 
 _MEDIA = tempfile.mkdtemp()
 
@@ -120,6 +124,118 @@ class RetiroTest(TenantTestCase):
         }, format='multipart', HTTP_HOST=self.host)
         self.assertEqual(resp.status_code, 400)
         self.assertIn('archivo', resp.json())
+
+    def test_rechaza_un_formato_que_no_es_documento(self):
+        # El respaldo es una factura, un acta o una denuncia; un ejecutable en
+        # el bucket no respalda nada y no tiene por que llegar a almacenarse.
+        self._activo('COM-0011')
+        archivo = SimpleUploadedFile('virus.exe', b'MZ', content_type='application/x-msdownload')
+        resp = self.client.post('/api/bajas/', {
+            'activoNum': 'COM-0011', 'motivo': 'Venta', 'desc': 'Vendido',
+            'fechaEfectiva': '2026-06-30', 'archivo': archivo,
+        }, format='multipart', HTTP_HOST=self.host)
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('archivo', resp.json())
+        with tenant_context(self.tenant):
+            self.assertFalse(Retiro.objects.filter(activo__numero_activo='COM-0011').exists())
+
+    def test_rechaza_un_archivo_demasiado_grande(self):
+        self._activo('COM-0012')
+        grande = SimpleUploadedFile(
+            'enorme.pdf', b'0' * (TAMANO_MAX_ARCHIVO + 1), content_type='application/pdf',
+        )
+        resp = self.client.post('/api/bajas/', {
+            'activoNum': 'COM-0012', 'motivo': 'Venta', 'desc': 'Vendido',
+            'fechaEfectiva': '2026-06-30', 'archivo': grande,
+        }, format='multipart', HTTP_HOST=self.host)
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('archivo', resp.json())
+
+    def test_el_comprobante_se_guarda_aislado_por_empresa(self):
+        # La ruta encabezada por el schema es lo que impide que dos empresas
+        # escriban el mismo objeto del bucket.
+        self._activo('COM-0013')
+        rid = self._registrar('COM-0013').json()['id']
+        with tenant_context(self.tenant):
+            ruta = Retiro.objects.get(pk=rid).archivo_respaldo.name
+        self.assertTrue(ruta.startswith(f'respaldos_retiro/{self.tenant.schema_name}/'), ruta)
+        self.assertTrue(ruta.endswith('c.pdf'), ruta)
+
+    def test_dos_comprobantes_con_el_mismo_nombre_no_se_pisan(self):
+        # Una baja es un hecho contable: subir otro `c.pdf` no puede sustituir
+        # el respaldo de una baja anterior.
+        self._activo('COM-0014')
+        self._activo('COM-0015')
+        primero = self._registrar('COM-0014').json()['id']
+        segundo = self._registrar('COM-0015').json()['id']
+        with tenant_context(self.tenant):
+            rutas = {Retiro.objects.get(pk=r).archivo_respaldo.name for r in (primero, segundo)}
+        self.assertEqual(len(rutas), 2, rutas)
+
+    def test_el_listado_expone_el_nombre_pero_nunca_la_ruta_del_bucket(self):
+        self._activo('COM-0016')
+        cuerpo = self._registrar('COM-0016').json()
+        self.assertEqual(cuerpo['archivoNombre'], 'c.pdf')
+        self.assertNotIn('respaldos_retiro', str(cuerpo))
+
+    def test_enlace_al_comprobante_requiere_sesion(self):
+        self._activo('COM-0017')
+        rid = self._registrar('COM-0017').json()['id']
+        anon = APIClient()
+        resp = anon.get(f'/api/bajas/{rid}/archivo/', HTTP_HOST=self.host)
+        self.assertEqual(resp.status_code, 401)
+
+    def test_enlace_firmado_cuando_hay_bucket_configurado(self):
+        self._activo('COM-0018')
+        rid = self._registrar('COM-0018').json()['id']
+
+        firmada = 'https://proyecto.supabase.co/storage/v1/object/sign/b/x?token=abc'
+        with patch.object(FileSystemStorage, 'enlace_firmado', create=True, return_value=firmada):
+            resp = self.client.get(f'/api/bajas/{rid}/archivo/', HTTP_HOST=self.host)
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+        cuerpo = resp.json()
+        self.assertEqual(cuerpo['url'], firmada)
+        self.assertEqual(cuerpo['nombre'], 'c.pdf')
+        # El enlace caduca: es para abrir el comprobante, no para repartirlo.
+        self.assertEqual(cuerpo['expiraEn'], TTL_ENLACE_SEGUNDOS)
+
+    def test_sin_bucket_el_enlace_apunta_al_endpoint_que_sirve_el_archivo(self):
+        # Desarrollo y tests: no hay nada firmado porque no hay nada publicado,
+        # y el frontend no tiene que enterarse de la diferencia.
+        self._activo('COM-0019')
+        rid = self._registrar('COM-0019').json()['id']
+        resp = self.client.get(f'/api/bajas/{rid}/archivo/', HTTP_HOST=self.host)
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertTrue(resp.json()['url'].endswith(f'/api/bajas/{rid}/archivo/contenido/'))
+        self.assertIsNone(resp.json()['expiraEn'])
+
+        contenido = self.client.get(f'/api/bajas/{rid}/archivo/contenido/', HTTP_HOST=self.host)
+        self.assertEqual(contenido.status_code, 200)
+        self.assertEqual(b''.join(contenido.streaming_content), b'contenido')
+
+    def test_un_fallo_del_bucket_al_firmar_devuelve_502_y_no_500(self):
+        # La diferencia importa: 502 dice "vuelva a intentarlo", 500 dice "el
+        # sistema esta roto". Que Supabase no responda no es lo segundo.
+        self._activo('COM-0020')
+        rid = self._registrar('COM-0020').json()['id']
+        with patch.object(FileSystemStorage, 'enlace_firmado', create=True,
+                          side_effect=ErrorDeAlmacenamiento('caido')):
+            resp = self.client.get(f'/api/bajas/{rid}/archivo/', HTTP_HOST=self.host)
+        self.assertEqual(resp.status_code, 502)
+
+    def test_si_el_bucket_falla_no_queda_una_baja_sin_comprobante(self):
+        # RN-002.2: una baja registrada cuyo respaldo no llego a guardarse es
+        # exactamente lo que la regla prohibe. Debe revertirse entera.
+        self._activo('COM-0021')
+        with patch.object(FileSystemStorage, '_save', side_effect=ErrorDeAlmacenamiento('caido')):
+            resp = self._registrar('COM-0021')
+        self.assertEqual(resp.status_code, 502)
+        with tenant_context(self.tenant):
+            self.assertFalse(Retiro.objects.filter(activo__numero_activo='COM-0021').exists())
+            self.assertFalse(Movimiento.objects.filter(
+                activo__numero_activo='COM-0021', tipo_evento='BAJA').exists())
 
     def test_revertir_dentro_de_gracia_reincorpora(self):
         self._activo('COM-0004')

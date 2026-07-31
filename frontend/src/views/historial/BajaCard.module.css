@@ -77,6 +77,25 @@
 }
 .pending a:hover { text-decoration-color: currentColor; }
 
+/* Acceso al comprobante: presente en toda baja porque el respaldo es
+   obligatorio. Columna propia del grid, con su propio gridLabel arriba — no
+   comparte celda con Responsable. Es un link, no una acción principal de la
+   tarjeta: sin caja ni fondo propios. */
+.comprobante {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 13.5px; font-weight: 500;
+  color: var(--accent);
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease);
+}
+.comprobante:hover:not(:disabled) { color: var(--accent-hover); }
+.comprobante:disabled { opacity: .6; cursor: progress; }
+.comprobante svg { flex: none; }
+
 .reverted {
   padding: 10px 14px;
   background: var(--mute-bg);

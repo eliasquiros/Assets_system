@@ -6,6 +6,7 @@ bajas.js, views/historial/*):
     GET  /api/bajas/                -> lista de bajas (mas reciente primero)
     POST /api/bajas/                -> registra una baja (multipart, con archivo)
     POST /api/bajas/<id>/revertir/  -> revierte una baja dentro del periodo de gracia
+    GET  /api/bajas/<id>/archivo/   -> enlace firmado y temporal al comprobante
 
 Autenticacion/permiso heredados de la config global (CookieJWTAuthentication +
 IsAuthenticated); el aislamiento entre empresas lo da el schema fijado por
@@ -16,20 +17,31 @@ correspondiente (BAJA / REVERSION_BAJA), como hace la edicion de activos. El
 corte de depreciacion NO se aplica al registrar: solo cuando la baja se vuelve
 DEFINITIVA (DA14), lo cual hace la tarea programada `promover_retiros_definitivos`.
 """
+import os
 from datetime import date, timedelta
 
 from django.db import transaction
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from config.almacenamiento import TTL_ENLACE_SEGUNDOS, ErrorDeAlmacenamiento
+
 from .models import Activo, Movimiento, Retiro
 
 # Periodo de gracia antes de que una baja sea definitiva (RN-002.4).
 GRACIA = timedelta(days=2)
+
+# Limites del comprobante. El respaldo de una baja es una factura, un acta o una
+# denuncia: documentos, no material pesado. Sin tope, un multipart de cualquier
+# tamano llegaba a ocupar espacio en el bucket sin que nada lo frenara.
+TAMANO_MAX_ARCHIVO = 10 * 1024 * 1024  # 10 MB
+EXTENSIONES_PERMITIDAS = {'.pdf', '.jpg', '.jpeg', '.png', '.webp'}
 
 # El frontend envia el motivo como etiqueta en espanol; se acepta tambien el
 # codigo directo por robustez. Ambos se normalizan al codigo del modelo.
@@ -58,7 +70,24 @@ def serializar_retiro(retiro):
         'fechaRegistro': retiro.fecha_registro.isoformat(),
         'user': retiro.usuario.username,
         'venceTs': _vence_ts(retiro),
+        # Solo el nombre: la ruta en el bucket no sale nunca al cliente, y el
+        # enlace se pide aparte para que no se emita una firma en cada listado.
+        'archivoNombre': os.path.basename(retiro.archivo_respaldo.name or ''),
     }
+
+
+def _validar_archivo(archivo):
+    """Reglas del comprobante antes de gastar una subida al bucket."""
+    if archivo is None:
+        return 'Adjunta un archivo de respaldo.'
+    extension = os.path.splitext(archivo.name or '')[1].lower()
+    if extension not in EXTENSIONES_PERMITIDAS:
+        permitidas = ', '.join(sorted(EXTENSIONES_PERMITIDAS))
+        return f'Formato no admitido. Usa uno de: {permitidas}.'
+    if archivo.size > TAMANO_MAX_ARCHIVO:
+        mb = TAMANO_MAX_ARCHIVO // (1024 * 1024)
+        return f'El archivo supera el maximo de {mb} MB.'
+    return None
 
 
 class RetiroListCreateView(APIView):
@@ -97,8 +126,9 @@ class RetiroListCreateView(APIView):
             else:
                 if fecha_efectiva > date.today():
                     errores['fechaEfectiva'] = 'La fecha efectiva no puede ser futura.'
-        if archivo is None:
-            errores['archivo'] = 'Adjunta un archivo de respaldo.'
+        problema_archivo = _validar_archivo(archivo)
+        if problema_archivo:
+            errores['archivo'] = problema_archivo
         if errores:
             return Response(errores, status=status.HTTP_400_BAD_REQUEST)
 
@@ -116,24 +146,113 @@ class RetiroListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        with transaction.atomic():
-            retiro = Retiro.objects.create(
-                activo=activo, motivo=motivo, descripcion=descripcion,
-                fecha_efectiva=fecha_efectiva, archivo_respaldo=archivo,
-                usuario=request.user,
-            )
-            # Movimiento BAJA: registra el evento en el historial inmutable. El
-            # estado_depreciacion no cambia todavia (el corte se aplica al pasar
-            # a DEFINITIVA, DA14); se guarda el estado actual en ambos lados.
-            Movimiento.objects.create(
-                activo=activo, tipo_evento=Movimiento.BAJA,
-                fecha_efectiva=fecha_efectiva, usuario=request.user, retiro=retiro,
-                valor_anterior={'estado_depreciacion': activo.estado_depreciacion},
-                valor_nuevo={'estado_depreciacion': activo.estado_depreciacion},
-                nota=retiro.get_motivo_display(),
+        # La subida al bucket ocurre dentro de la transaccion, al guardar el
+        # FileField: si Supabase falla, no queda una baja registrada sin su
+        # comprobante — que es justo la combinacion que RN-002.2 prohibe.
+        try:
+            with transaction.atomic():
+                retiro = Retiro.objects.create(
+                    activo=activo, motivo=motivo, descripcion=descripcion,
+                    fecha_efectiva=fecha_efectiva, archivo_respaldo=archivo,
+                    usuario=request.user,
+                )
+                # Movimiento BAJA: registra el evento en el historial inmutable.
+                # El estado_depreciacion no cambia todavia (el corte se aplica al
+                # pasar a DEFINITIVA, DA14); se guarda el estado en ambos lados.
+                Movimiento.objects.create(
+                    activo=activo, tipo_evento=Movimiento.BAJA,
+                    fecha_efectiva=fecha_efectiva, usuario=request.user, retiro=retiro,
+                    valor_anterior={'estado_depreciacion': activo.estado_depreciacion},
+                    valor_nuevo={'estado_depreciacion': activo.estado_depreciacion},
+                    nota=retiro.get_motivo_display(),
+                )
+        except ErrorDeAlmacenamiento:
+            return Response(
+                {'archivo': 'No se pudo guardar el comprobante. Intentalo de nuevo.'},
+                status=status.HTTP_502_BAD_GATEWAY,
             )
 
         return Response(serializar_retiro(retiro), status=status.HTTP_201_CREATED)
+
+
+class RetiroArchivoView(APIView):
+    """GET /api/bajas/<id>/archivo/ — enlace firmado y temporal al comprobante.
+
+    El bucket es privado y la clave service_role del backend salta las policies
+    de Storage, asi que la unica frontera entre empresas es esta vista: el
+    retiro se busca en el schema que fijo TenantMainMiddleware, de modo que
+    pedir el id de una baja de otra empresa devuelve 404. La ruta del objeto
+    jamas se acepta del cliente — se lee del registro— para que nadie pueda
+    pedir la firma de una ruta arbitraria del bucket.
+
+    Se emite una firma nueva en cada peticion en lugar de guardarla: un enlace
+    almacenado sobrevive a la sesion que lo pidio, y este caduca en minutos.
+    """
+
+    def get(self, request, id):
+        retiro = get_object_or_404(Retiro, pk=id)
+        archivo = retiro.archivo_respaldo
+        if not archivo:
+            return Response(
+                {'detail': 'La baja no tiene comprobante.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Se pregunta por la capacidad de firmar, no por el tipo de storage ni
+        # por si `.url()` falla: el almacenamiento local devuelve una ruta bajo
+        # MEDIA_URL que nadie sirve, asi que un enlace "valido" pero muerto.
+        firmar = getattr(archivo.storage, 'enlace_firmado', None)
+        if firmar is None:
+            # Desarrollo y tests: no hay nada que firmar porque no hay nada
+            # publicado. Se devuelve el endpoint que sirve el archivo con la
+            # sesion, para que el frontend no sepa donde esta guardado.
+            url = request.build_absolute_uri(
+                reverse('baja-archivo-contenido', args=[retiro.id]),
+            )
+            expira_en = None
+        else:
+            try:
+                url = firmar(archivo.name)
+            except ErrorDeAlmacenamiento:
+                return Response(
+                    {'detail': 'No se pudo generar el enlace al comprobante.'},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+            expira_en = TTL_ENLACE_SEGUNDOS
+
+        return Response({
+            'url': url,
+            'nombre': os.path.basename(archivo.name),
+            'expiraEn': expira_en,
+        })
+
+
+class RetiroArchivoContenidoView(APIView):
+    """GET /api/bajas/<id>/archivo/contenido/ — sirve el comprobante con sesion.
+
+    Es la contraparte del enlace firmado para cuando no hay bucket configurado
+    (desarrollo, tests). Aqui el archivo pasa por el backend, asi que el control
+    de acceso es la propia sesion y el schema del tenant.
+    """
+
+    def get(self, request, id):
+        retiro = get_object_or_404(Retiro, pk=id)
+        if not retiro.archivo_respaldo:
+            return Response(
+                {'detail': 'La baja no tiene comprobante.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            contenido = retiro.archivo_respaldo.storage.open(retiro.archivo_respaldo.name)
+        except (ErrorDeAlmacenamiento, FileNotFoundError):
+            return Response(
+                {'detail': 'No se pudo leer el comprobante.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return FileResponse(
+            contenido, as_attachment=True,
+            filename=os.path.basename(retiro.archivo_respaldo.name),
+        )
 
 
 class RetiroRevertirView(APIView):

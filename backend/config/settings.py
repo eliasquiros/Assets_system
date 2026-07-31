@@ -16,7 +16,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from config.env import resolver_debug, resolver_secret_key, validar_conexion_db
+from config.env import (
+    resolver_debug,
+    resolver_secret_key,
+    validar_almacenamiento,
+    validar_conexion_db,
+)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -169,12 +174,18 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-# Archivos subidos por el usuario (por ahora: comprobantes de respaldo de las
-# bajas, RN-002.2). MEDIA_ROOT es un directorio privado local: NO se expone
-# MEDIA_URL, asi que estos archivos no se sirven publicamente. El almacenamiento
-# privado en la nube y la descarga con enlace temporal firmado (RS-005) quedan
-# pendientes.
+# Archivos subidos por el usuario (comprobantes de respaldo de las bajas,
+# RN-002.2). En produccion viven en un bucket PRIVADO de Supabase Storage y se
+# acceden con enlace firmado de vida corta (RS-005, ver config/almacenamiento).
+# MEDIA_ROOT sigue siendo el destino local de desarrollo y tests: un directorio
+# privado sin MEDIA_URL, de modo que tampoco ahi se sirve nada publicamente.
 MEDIA_ROOT = os.environ.get('DJANGO_MEDIA_ROOT', str(BASE_DIR / 'media_privado'))
+
+# Falla cerrado: un despliegue real sin bucket guardaria los comprobantes en el
+# disco del contenedor, que en Render se borra en cada despliegue. Perder el
+# respaldo de una baja es perder la prueba de un asiento contable, asi que es
+# preferible no arrancar.
+validar_almacenamiento(os.environ, debug=DEBUG)
 
 
 # --- API / autenticacion ---

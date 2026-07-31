@@ -5,7 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiFetch, descargarArchivo } from './client'
 import { crearActivo, editarActivo, listarActivos, obtenerActivo, obtenerMovimientos } from './activos'
-import { listarBajas, registrarBaja, revertirBaja } from './bajas'
+import { listarBajas, obtenerEnlaceArchivo, registrarBaja, revertirBaja } from './bajas'
 import { descargarReporteAuditoria, descargarReporteFinanciero } from './reportes'
 import { login } from './auth'
 
@@ -77,6 +77,12 @@ describe('api/bajas', () => {
     apiFetch.mockResolvedValue(null)
     await revertirBaja('BJ-2026-018', { token: 't1' })
     expect(apiFetch).toHaveBeenCalledWith('/bajas/BJ-2026-018/revertir/', { method: 'POST', token: 't1' })
+  })
+
+  it('obtenerEnlaceArchivo fetches the signed link for one baja', async () => {
+    apiFetch.mockResolvedValue({ url: 'https://bucket/x?token=abc', nombre: 'acta.pdf', expiraEn: 300 })
+    await obtenerEnlaceArchivo('BJ-2026-018', { token: 't1' })
+    expect(apiFetch).toHaveBeenCalledWith('/bajas/BJ-2026-018/archivo/', { token: 't1' })
   })
 })
 

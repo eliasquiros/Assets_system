@@ -23,6 +23,37 @@ def resolver_debug(environ):
 # Puerto del pooler de Supabase en modo TRANSACCION. El de modo SESION es 5432.
 PUERTO_POOLER_TRANSACCION = '6543'
 
+# Credenciales del bucket privado donde viven los comprobantes de baja (RS-005).
+VARIABLES_ALMACENAMIENTO = (
+    'SUPABASE_URL',
+    'SUPABASE_SERVICE_KEY',
+    'SUPABASE_BUCKET_RESPALDOS',
+)
+
+
+def validar_almacenamiento(environ, *, debug):
+    """Exige almacenamiento persistente fuera de desarrollo.
+
+    Sin estas variables, Django guarda los comprobantes en MEDIA_ROOT, es decir
+    en el disco del contenedor. En Render ese disco se borra en cada despliegue:
+    el sistema seguiria aceptando bajas y contestando 201, y los respaldos se
+    irian evaporando sin un solo error en los logs. Un comprobante perdido es la
+    prueba documental de un asiento contable perdida (RN-002.2), asi que en
+    produccion se prefiere no arrancar.
+
+    En DEBUG se permite el almacenamiento local: es lo que usan el desarrollo
+    sin red y la suite de tests.
+    """
+    if debug:
+        return
+    faltantes = [v for v in VARIABLES_ALMACENAMIENTO if not (environ.get(v) or '').strip()]
+    if faltantes:
+        raise ImproperlyConfigured(
+            'Faltan credenciales de Supabase Storage (' + ', '.join(faltantes) + '). '
+            'Sin bucket, los comprobantes de baja se guardarian en el disco del '
+            'contenedor y se perderian en el siguiente despliegue.'
+        )
+
 
 def validar_conexion_db(config):
     """Impide arrancar contra un pooler en modo transaccion.
