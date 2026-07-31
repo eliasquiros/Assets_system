@@ -14,30 +14,24 @@ vi.mock('../../api/auth')
 describe('LandingView en el host de marca', () => {
   it('App sirve la landing —no el login— cuando el host es www', () => {
     render(<App />)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/bajo control/i)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/en un mismo/i)
     // El login vive en el subdominio de cada empresa, no aqui.
     expect(screen.queryByPlaceholderText('Usuario')).not.toBeInTheDocument()
   })
 
-  it('muestra las funcionalidades, los beneficios y la seguridad', () => {
+  it('presenta la marca y los tres movimientos del sistema', () => {
     render(<LandingView />)
-    expect(screen.getByText('Depreciación sin intervención')).toBeInTheDocument()
-    expect(screen.getByText('Auditorías sin sobresaltos')).toBeInTheDocument()
-    // Como encabezado, no como la nota suelta del hero que repite la frase.
-    expect(
-      screen.getByRole('heading', { name: 'Datos aislados por empresa' }),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/Acticr es una marca costarricense/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /depreciación automática/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Reportes de auditoría/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /nada se cambia en silencio/i })).toBeInTheDocument()
   })
 
-  it('el carrusel cambia de paso al elegir otro punto', async () => {
+  it('el contacto abre WhatsApp con el mensaje ya escrito', () => {
     render(<LandingView />)
-    expect(screen.getByText(/Registra una vez/i)).toBeInTheDocument()
-
-    const tabs = screen.getAllByRole('tab')
-    await userEvent.click(tabs[2])
-
-    expect(screen.getByText(/Cada movimiento deja huella/i)).toBeInTheDocument()
-    expect(tabs[2]).toHaveAttribute('aria-selected', 'true')
+    const wa = screen.getByRole('link', { name: 'Escribir por WhatsApp' })
+    expect(wa).toHaveAttribute('href', expect.stringContaining('https://wa.me/50670640040'))
+    expect(wa).toHaveAttribute('target', '_blank')
   })
 
   it('"Iniciar sesión" abre el paso que pregunta por la empresa', async () => {
