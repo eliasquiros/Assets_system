@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { MarcaActicr } from '../../components/MarcaActicr'
 import { useMetaPagina } from '../../hooks/useMetaPagina'
 import { useReveal } from '../../hooks/useReveal'
 import { AccesoModal } from './AccesoModal'
@@ -49,19 +50,6 @@ const PILARES = [
   { titulo: 'Servicio', texto: 'Acompañamiento real, en su idioma y su horario.' },
   { titulo: 'Seguridad', texto: 'Accesos, respaldos y trazabilidad de cada cambio.' },
 ]
-
-function MarcaActicr({ width = 27, height = width * 0.6, ...props }) {
-  return (
-    <svg viewBox="0 0 100 60" width={width} height={height} fill="currentColor" aria-hidden="true" {...props}>
-      <path fillRule="evenodd" d="M12 1H46L27 59H12A11 11 0 0 1 1 48V12A11 11 0 0 1 12 1ZM15 24a6 6 0 1 0 0 12 6 6 0 1 0 0-12Z" />
-      <path d="M44 1H52L71 59H63Z" />
-      <path d="M34 36H52L57 48H29Z" />
-      <path d="M59 5H93a5.5 5.5 0 0 1 0 11H62Z" />
-      <path d="M66 24H93a5.5 5.5 0 0 1 0 11H69Z" />
-      <path d="M73 43H93a5.5 5.5 0 0 1 0 11H76Z" />
-    </svg>
-  )
-}
 
 function IconoWhatsApp() {
   return (
