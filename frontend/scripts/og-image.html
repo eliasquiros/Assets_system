@@ -1,0 +1,135 @@
+<!doctype html>
+<!--
+  Fuente de public/og.png: la imagen de vista previa que se ve al compartir el
+  enlace en WhatsApp, LinkedIn o Slack. Es una miniatura del hero de la landing.
+
+  Se guarda el HTML en vez de solo el PNG porque el texto y la paleta cambian
+  con la landing, y regenerarla debe ser trivial. Para rehacerla:
+
+  chrome --headless=new --disable-gpu --hide-scrollbars \
+         --force-device-scale-factor=1 --window-size=1200,630 \
+         --virtual-time-budget=8000 \
+         --screenshot=../public/og.png scripts/og-image.html
+
+  1200x630 es la medida que todas las plataformas recortan bien, y conviene
+  mantener el PNG por debajo de 300 kB: WhatsApp descarta las mas pesadas.
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;1,6..96,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    position: relative;
+    background:
+      radial-gradient(1100px 760px at 78% -14%, rgba(110,140,225,0.10), transparent 66%),
+      radial-gradient(900px 700px at -8% 48%, rgba(110,140,225,0.06), transparent 66%),
+      linear-gradient(180deg, #070c1a 0%, #05070f 48%, #020307 100%);
+    color: #f1f3f6;
+    font-family: "Jost", system-ui, sans-serif;
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 62px 72px;
+  }
+
+  /* Marca de agua: el mismo isotipo del cierre de la landing. */
+  .watermark {
+    position: absolute;
+    right: -110px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 620px;
+    opacity: 0.05;
+    color: #f1f3f6;
+  }
+
+  .brand { display: flex; align-items: center; gap: 15px; position: relative; }
+  .mark {
+    width: 52px; height: 52px; border-radius: 14px;
+    display: grid; place-items: center;
+    background: linear-gradient(155deg, #101529, #06080f);
+    border: 1px solid rgba(241,243,246,0.11);
+    box-shadow: inset 0 1px 0 rgba(241,243,246,0.07);
+  }
+  .brand-name {
+    font-family: "Bodoni Moda", Didot, serif;
+    font-size: 28px; letter-spacing: 0.22em; text-transform: uppercase;
+  }
+
+  .body { position: relative; }
+
+  .eyebrow {
+    display: flex; align-items: center; gap: 18px;
+    margin-bottom: 30px;
+    font-size: 15px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: rgba(241,243,246,0.62);
+  }
+  .eyebrow span.rule { display: block; width: 64px; height: 1px; background: #c9d1dc; }
+
+  h1 {
+    font-family: "Bodoni Moda", Didot, serif;
+    font-weight: 400;
+    font-size: 92px;
+    line-height: 1.03;
+    letter-spacing: -0.015em;
+  }
+  h1 .it { font-style: italic; }
+  h1 .dot { color: #c9d1dc; }
+
+  .foot {
+    position: relative;
+    display: flex; align-items: center; gap: 14px;
+    font-size: 16px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: rgba(241,243,246,0.5);
+  }
+  .flag { border-radius: 2px; display: block; box-shadow: 0 0 0 1px rgba(241,243,246,0.16); }
+</style>
+</head>
+<body>
+
+  <svg class="watermark" viewBox="0 0 100 60" fill="currentColor" aria-hidden="true">
+    <path fill-rule="evenodd" d="M12 1H46L27 59H12A11 11 0 0 1 1 48V12A11 11 0 0 1 12 1ZM15 24a6 6 0 1 0 0 12 6 6 0 1 0 0-12Z"></path>
+    <path d="M44 1H52L71 59H63Z"></path>
+    <path d="M34 36H52L57 48H29Z"></path>
+    <path d="M59 5H93a5.5 5.5 0 0 1 0 11H62Z"></path>
+    <path d="M66 24H93a5.5 5.5 0 0 1 0 11H69Z"></path>
+    <path d="M73 43H93a5.5 5.5 0 0 1 0 11H76Z"></path>
+  </svg>
+
+  <div class="brand">
+    <span class="mark">
+      <svg viewBox="0 0 100 60" width="34" height="20.4" fill="currentColor" aria-hidden="true">
+        <path fill-rule="evenodd" d="M12 1H46L27 59H12A11 11 0 0 1 1 48V12A11 11 0 0 1 12 1ZM15 24a6 6 0 1 0 0 12 6 6 0 1 0 0-12Z"></path>
+        <path d="M44 1H52L71 59H63Z"></path>
+        <path d="M34 36H52L57 48H29Z"></path>
+        <path d="M59 5H93a5.5 5.5 0 0 1 0 11H62Z"></path>
+        <path d="M66 24H93a5.5 5.5 0 0 1 0 11H69Z"></path>
+        <path d="M73 43H93a5.5 5.5 0 0 1 0 11H76Z"></path>
+      </svg>
+    </span>
+    <span class="brand-name">Acticr</span>
+  </div>
+
+  <div class="body">
+    <p class="eyebrow"><span class="rule"></span>Gestión de activos fijos · Costa Rica</p>
+    <h1>Todos tus activos<br>en un mismo <span class="it">lugar<span class="dot">.</span></span></h1>
+  </div>
+
+  <div class="foot">
+    Hecho en Costa Rica
+    <svg class="flag" viewBox="0 0 30 18" width="30" height="18">
+      <rect width="30" height="18" fill="#002b7f"></rect>
+      <rect y="3" width="30" height="12" fill="#f1f3f6"></rect>
+      <rect y="6" width="30" height="6" fill="#ce1126"></rect>
+    </svg>
+  </div>
+
+</body>
+</html>
