@@ -43,6 +43,22 @@ describe('BajaCard', () => {
     expect(screen.getByText('↺ Revertir baja')).toBeInTheDocument()
   })
 
+  it('hides the revert link once the grace period is over even if the backend has not promoted it yet', () => {
+    // El backend solo pasa a Definitiva cuando corre la tarea diaria de
+    // pg_cron; entre que vence el contador y esa corrida, el registro sigue
+    // llegando como estado: 'Pendiente'. Sin el chequeo por reloj en el
+    // cliente, el link de revertir se quedaba ahí clicable — y el backend lo
+    // rechaza con 409 igualmente, así que era pura confusión de UI.
+    renderCard({
+      id: 'BJ-2026-019', activoNum: 'AF-0032', activoNombre: 'Monitor', motivo: 'Venta',
+      desc: 'Vendido', fechaEfectiva: '2026-07-05', fechaRegistro: '2026-07-05', user: 'J. Mora',
+      estado: 'Pendiente', venceTs: NOW - 1000,
+    })
+    expect(screen.queryByText('↺ Revertir baja')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Periodo de gracia · Vence en/)).not.toBeInTheDocument()
+    expect(screen.getByText(/El período de gracia venció y ya no puede revertirse/)).toBeInTheDocument()
+  })
+
   it('shows the reincorporation message when the baja was reverted', () => {
     renderCard({
       id: 'BJ-2026-009', activoNum: 'AF-0020', activoNombre: 'Escritorio', motivo: 'Desecho u obsolescencia',
@@ -65,7 +81,7 @@ describe('BajaCard', () => {
     vi.spyOn(window, 'open').mockReturnValue(pestana)
     renderCard(CON_COMPROBANTE)
 
-    await userEvent.click(screen.getByRole('button', { name: /Ver comprobante · acta\.pdf/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Documento' }))
 
     expect(mutateAsync).toHaveBeenCalledWith('BJ-2026-030')
     expect(pestana.location).toBe('https://bucket/firmado?token=abc')
@@ -80,7 +96,7 @@ describe('BajaCard', () => {
     mutateAsync.mockRejectedValue(new Error('502'))
     renderCard(CON_COMPROBANTE)
 
-    await userEvent.click(screen.getByRole('button', { name: /Ver comprobante/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Documento' }))
 
     // Dejar una pestaña en blanco abierta parece que el archivo no existe.
     expect(pestana.close).toHaveBeenCalled()
@@ -89,7 +105,7 @@ describe('BajaCard', () => {
 
   it('does not offer the comprobante for bajas registered before the bucket existed', () => {
     renderCard({ ...CON_COMPROBANTE, archivoNombre: '' })
-    expect(screen.queryByRole('button', { name: /Ver comprobante/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Documento' })).not.toBeInTheDocument()
   })
 
   it('labels a definitiva baja without the countdown or revert link', () => {

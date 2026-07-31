@@ -52,7 +52,7 @@
   text-transform: uppercase; letter-spacing: .075em;
   margin-bottom: 3px;
 }
-.gridValue { font-size: 13.5px; color: var(--ink); }
+.gridValue { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink); }
 
 /* ---- Periodo de gracia --------------------------------------------------- */
 /* El unico bloque ambar de la app: marca la ventana en la que todavia se puede
@@ -78,25 +78,22 @@
 .pending a:hover { text-decoration-color: currentColor; }
 
 /* Acceso al comprobante: presente en toda baja porque el respaldo es
-   obligatorio. Discreto —es una consulta, no la acción principal de la
-   tarjeta— pero con el nombre del archivo visible, que es lo que permite
-   reconocerlo sin abrirlo. */
+   obligatorio. Es un link, no una acción principal de la tarjeta — a la par
+   del responsable, mismo tamaño de texto, sin caja ni fondo propios. */
 .comprobante {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 8px 12px;
-  background: var(--surface-sunk);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 0;
+  background: none;
+  border: none;
   font: inherit;
-  font-size: 12.5px; font-weight: 500;
-  color: var(--ink-2);
+  font-size: 13.5px; font-weight: 500;
+  color: var(--accent);
   cursor: pointer;
-  max-width: 100%;
-  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+  transition: color var(--dur-1) var(--ease);
 }
-.comprobante:hover:not(:disabled) { background: var(--surface); border-color: var(--ink-4); color: var(--ink); }
+.comprobante:hover:not(:disabled) { color: var(--accent-hover); }
 .comprobante:disabled { opacity: .6; cursor: progress; }
-.comprobante svg { flex: none; color: var(--ink-3); }
+.comprobante svg { flex: none; }
 
 .reverted {
   padding: 10px 14px;
