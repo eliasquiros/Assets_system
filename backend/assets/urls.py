@@ -6,7 +6,10 @@ from .catalogos import (
 )
 from .internal import ActualizarDepreciacionView, PromoverRetirosView
 from .reportes import ReporteAuditoriaView, ReporteFinancieroView
-from .retiros import RetiroListCreateView, RetiroRevertirView
+from .retiros import (
+    RetiroArchivoContenidoView, RetiroArchivoView, RetiroListCreateView,
+    RetiroRevertirView,
+)
 from .views import (
     ActivoCreateView, ActivoDetailView, ActivoListView,
     MovimientoListView, SiguienteNumeroView,
@@ -28,6 +31,8 @@ urlpatterns = [
 
     path('bajas/', RetiroListCreateView.as_view(), name='baja-list-create'),
     path('bajas/<int:id>/revertir/', RetiroRevertirView.as_view(), name='baja-revertir'),
+    path('bajas/<int:id>/archivo/', RetiroArchivoView.as_view(), name='baja-archivo'),
+    path('bajas/<int:id>/archivo/contenido/', RetiroArchivoContenidoView.as_view(), name='baja-archivo-contenido'),
 
     path('reportes/auditoria/', ReporteAuditoriaView.as_view(), name='reporte-auditoria'),
     path('reportes/financiero/', ReporteFinancieroView.as_view(), name='reporte-financiero'),

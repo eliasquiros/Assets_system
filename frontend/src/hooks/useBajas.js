@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { listarBajas, registrarBaja, revertirBaja } from '../api/bajas'
+import { listarBajas, obtenerEnlaceArchivo, registrarBaja, revertirBaja } from '../api/bajas'
 import { useAuth } from '../context/AuthContext'
 
 export function useBajas() {
@@ -17,6 +17,13 @@ export function useRegistrarBaja() {
       queryClient.invalidateQueries({ queryKey: ['activos'] })
     },
   })
+}
+
+// Mutación y no query: pedir el enlace tiene un efecto —consume una firma con
+// caducidad— y no debe dispararse solo porque el componente se vuelva a montar.
+export function useEnlaceArchivo() {
+  const { token } = useAuth()
+  return useMutation({ mutationFn: (id) => obtenerEnlaceArchivo(id, { token }) })
 }
 
 export function useRevertirBaja() {

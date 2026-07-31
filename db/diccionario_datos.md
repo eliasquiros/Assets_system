@@ -183,7 +183,7 @@ Todo tipo de dato, restricción y motivo de diseño aquí descrito corresponde e
 | `motivo` | `VARCHAR(30)` | NOT NULL, `CHECK IN ('VENTA','DESECHO','ROBO_PERDIDA')` | RN-002.1 |
 | `descripcion` | `TEXT` | NOT NULL | RN-002.2 |
 | `fecha_efectiva` | `DATE` | NOT NULL | Corta la depreciación (RN-002.3), solo cuando el retiro se vuelve definitivo (DA14) |
-| `archivo_respaldo` | `TEXT` | NOT NULL | Obligatorio para cualquier motivo (RN-002.2); enlace privado (RS-005) |
+| `archivo_respaldo` | `TEXT` | NOT NULL | Ruta del objeto en el bucket privado de Supabase Storage, encabezada por el schema de la empresa. Obligatorio para cualquier motivo (RN-002.2); se accede con enlace firmado temporal vía `GET /api/bajas/<id>/archivo/`, nunca por URL pública (RS-005) |
 | `estado` | `VARCHAR(20)` | NOT NULL, default `'PENDIENTE'`, `CHECK IN ('PENDIENTE','REVERTIDA','DEFINITIVA')` | |
 | `fecha_registro` | `TIMESTAMPTZ` | NOT NULL, default `now()` | Arranca el reloj de 2 días de gracia (RN-002.4) |
 | `usuario_id` | `BIGINT` | FK → `usuario.id` ON DELETE RESTRICT, NOT NULL | RS-004 |

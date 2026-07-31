@@ -11,7 +11,12 @@ no es una preferencia de estilo: es lo que separa "falta una variable" de
 from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase
 
-from config.env import resolver_debug, resolver_secret_key, validar_conexion_db
+from config.env import (
+    resolver_debug,
+    resolver_secret_key,
+    validar_almacenamiento,
+    validar_conexion_db,
+)
 
 
 class ResolverDebugTest(SimpleTestCase):
@@ -105,3 +110,43 @@ class ValidarConexionDbTest(SimpleTestCase):
     def test_sin_puerto_definido_no_estorba(self):
         # Postgres asume 5432; no hay nada que objetar.
         validar_conexion_db({'HOST': 'localhost', 'PORT': ''})
+
+
+class ValidarAlmacenamientoTest(SimpleTestCase):
+    """Sin bucket, los comprobantes de baja se guardarian en el disco del
+    contenedor. En Render ese disco se borra en cada despliegue: el sistema
+    seguiria aceptando bajas y contestando 201 mientras los respaldos se
+    evaporan, sin un solo error en los logs. Un comprobante perdido es la prueba
+    documental de un asiento contable perdida (RN-002.2), y se descubre meses
+    despues, en una auditoria. Por eso en produccion se prefiere no arrancar.
+    """
+
+    COMPLETO = {
+        'SUPABASE_URL': 'https://proyecto.supabase.co',
+        'SUPABASE_SERVICE_KEY': 'clave',
+        'SUPABASE_BUCKET_RESPALDOS': 'respaldos-retiro',
+    }
+
+    def test_en_produccion_sin_credenciales_no_arranca(self):
+        with self.assertRaises(ImproperlyConfigured):
+            validar_almacenamiento({}, debug=False)
+
+    def test_el_mensaje_nombra_las_variables_que_faltan(self):
+        # Quien despliega tiene que saber que anotar en el panel de Render.
+        entorno = {**self.COMPLETO}
+        del entorno['SUPABASE_SERVICE_KEY']
+        with self.assertRaises(ImproperlyConfigured) as ctx:
+            validar_almacenamiento(entorno, debug=False)
+        self.assertIn('SUPABASE_SERVICE_KEY', str(ctx.exception))
+        self.assertNotIn('SUPABASE_URL', str(ctx.exception).split('(')[1].split(')')[0])
+
+    def test_una_variable_en_blanco_cuenta_como_ausente(self):
+        with self.assertRaises(ImproperlyConfigured):
+            validar_almacenamiento({**self.COMPLETO, 'SUPABASE_BUCKET_RESPALDOS': '  '}, debug=False)
+
+    def test_con_las_tres_variables_arranca(self):
+        validar_almacenamiento(self.COMPLETO, debug=False)   # no levanta
+
+    def test_en_desarrollo_el_almacenamiento_local_es_aceptable(self):
+        # Trabajar sin red no puede exigir credenciales de un bucket real.
+        validar_almacenamiento({}, debug=True)

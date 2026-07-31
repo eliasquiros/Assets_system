@@ -77,6 +77,27 @@
 }
 .pending a:hover { text-decoration-color: currentColor; }
 
+/* Acceso al comprobante: presente en toda baja porque el respaldo es
+   obligatorio. Discreto —es una consulta, no la acción principal de la
+   tarjeta— pero con el nombre del archivo visible, que es lo que permite
+   reconocerlo sin abrirlo. */
+.comprobante {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  font: inherit;
+  font-size: 12.5px; font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+  max-width: 100%;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.comprobante:hover:not(:disabled) { background: var(--surface); border-color: var(--ink-4); color: var(--ink); }
+.comprobante:disabled { opacity: .6; cursor: progress; }
+.comprobante svg { flex: none; color: var(--ink-3); }
+
 .reverted {
   padding: 10px 14px;
   background: var(--mute-bg);

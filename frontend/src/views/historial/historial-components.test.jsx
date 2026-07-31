@@ -1,7 +1,7 @@
 // Smaller pieces of the Historial feature (the read-only card and the two
 // action modals) — grouped here since the list/loading/error/empty-state
 // coverage for this feature already lives in HistorialView.test.jsx.
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -9,7 +9,7 @@ import { BajaCard } from './BajaCard'
 import { RetiroModal } from './RetiroModal'
 import { RevertModal } from './RevertModal'
 import { useActivos } from '../../hooks/useActivos'
-import { useBajas, useRegistrarBaja, useRevertirBaja } from '../../hooks/useBajas'
+import { useBajas, useEnlaceArchivo, useRegistrarBaja, useRevertirBaja } from '../../hooks/useBajas'
 import { useToast } from '../../context/ToastContext'
 
 vi.mock('../../hooks/useActivos')
@@ -23,6 +23,16 @@ function renderCard(baja) {
 }
 
 describe('BajaCard', () => {
+  let mutateAsync
+  let showToast
+
+  beforeEach(() => {
+    mutateAsync = vi.fn().mockResolvedValue({ url: 'https://bucket/firmado?token=abc', nombre: 'acta.pdf', expiraEn: 300 })
+    showToast = vi.fn()
+    useEnlaceArchivo.mockReturnValue({ mutateAsync, isPending: false })
+    useToast.mockReturnValue({ showToast })
+  })
+
   it('shows the grace-period countdown and a revert link when pending', () => {
     renderCard({
       id: 'BJ-2026-018', activoNum: 'AF-0031', activoNombre: 'Laptop HP', motivo: 'Desecho u obsolescencia',
@@ -41,6 +51,45 @@ describe('BajaCard', () => {
     })
     expect(screen.getByText('Baja revertida — el activo fue reincorporado al inventario vigente.')).toBeInTheDocument()
     expect(screen.queryByText('↺ Revertir baja')).not.toBeInTheDocument()
+  })
+
+  const CON_COMPROBANTE = {
+    id: 'BJ-2026-030', activoNum: 'AF-0044', activoNombre: 'Impresora', motivo: 'Venta',
+    desc: 'Vendida', fechaEfectiva: '2026-05-01', fechaRegistro: '2026-05-01', user: 'J. Mora',
+    estado: 'Definitiva', venceTs: null, archivoNombre: 'acta.pdf',
+  }
+
+  it('opens the comprobante in a new tab with the link the backend signs', async () => {
+    // El enlace caduca, así que se pide al pulsar y nunca se guarda en la fila.
+    const pestana = { location: '', close: vi.fn() }
+    vi.spyOn(window, 'open').mockReturnValue(pestana)
+    renderCard(CON_COMPROBANTE)
+
+    await userEvent.click(screen.getByRole('button', { name: /Ver comprobante · acta\.pdf/ }))
+
+    expect(mutateAsync).toHaveBeenCalledWith('BJ-2026-030')
+    expect(pestana.location).toBe('https://bucket/firmado?token=abc')
+    // La pestaña se abre en el gesto del usuario, antes de esperar la firma:
+    // hacerlo después la convierte en un popup y el navegador la bloquea.
+    expect(window.open).toHaveBeenCalledWith('', '_blank', 'noopener')
+  })
+
+  it('closes the tab and warns when the link cannot be issued', async () => {
+    const pestana = { location: '', close: vi.fn() }
+    vi.spyOn(window, 'open').mockReturnValue(pestana)
+    mutateAsync.mockRejectedValue(new Error('502'))
+    renderCard(CON_COMPROBANTE)
+
+    await userEvent.click(screen.getByRole('button', { name: /Ver comprobante/ }))
+
+    // Dejar una pestaña en blanco abierta parece que el archivo no existe.
+    expect(pestana.close).toHaveBeenCalled()
+    expect(showToast).toHaveBeenCalledWith('No se pudo abrir el comprobante.', 'error')
+  })
+
+  it('does not offer the comprobante for bajas registered before the bucket existed', () => {
+    renderCard({ ...CON_COMPROBANTE, archivoNombre: '' })
+    expect(screen.queryByRole('button', { name: /Ver comprobante/ })).not.toBeInTheDocument()
   })
 
   it('labels a definitiva baja without the countdown or revert link', () => {

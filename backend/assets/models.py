@@ -4,9 +4,40 @@ Mapean las tablas documentadas en db/schema.sql. Cubren el listado/detalle y el
 registro de activos (RF-001): todos los catalogos (localizacion, categoria,
 proveedor, marca, modelo, origen) y las FKs correspondientes en `activo`.
 """
+import os
+import uuid
+from functools import cache
+
 from django.conf import settings
-from django.db import models
+from django.core.files.storage import default_storage
+from django.db import connection, models
 from django.db.models.functions import Lower, Trim
+from django.utils.text import get_valid_filename
+
+from config.almacenamiento import construir_almacenamiento
+
+
+@cache
+def obtener_almacenamiento_respaldos():
+    """Storage de los comprobantes de baja: Supabase si esta configurado.
+
+    Sin credenciales cae al almacenamiento local, que es lo que usan los tests y
+    el desarrollo sin red. En un despliegue real la falta de credenciales la
+    detiene el arranque (config/settings.py), no este helper.
+    """
+    return construir_almacenamiento(os.environ) or default_storage
+
+
+def ruta_respaldo_retiro(instance, filename):
+    """Ruta del comprobante dentro del bucket, aislada por empresa.
+
+    El schema del tenant encabeza la ruta para que dos empresas nunca escriban
+    en el mismo objeto, y un UUID por archivo evita que subir dos veces
+    `factura.pdf` sobrescriba el comprobante anterior — una baja es un hecho
+    contable y su respaldo no puede pisarse (RN-002.2).
+    """
+    nombre = get_valid_filename(os.path.basename(filename)) or 'comprobante'
+    return f'respaldos_retiro/{connection.schema_name}/{uuid.uuid4()}/{nombre}'
 
 
 class Localizacion(models.Model):
@@ -329,10 +360,15 @@ class Retiro(models.Model):
     motivo = models.CharField(max_length=30, choices=MOTIVO_CHOICES)
     descripcion = models.TextField()
     fecha_efectiva = models.DateField()
-    # Comprobante obligatorio para cualquier motivo (RN-002.2). Se guarda en
-    # storage privado local (MEDIA_ROOT), no servido publicamente. El acceso con
-    # enlace temporal firmado (RS-005) queda pendiente.
-    archivo_respaldo = models.FileField(upload_to='respaldos_retiro/')
+    # Comprobante obligatorio para cualquier motivo (RN-002.2). Vive en un
+    # bucket privado de Supabase Storage, fuera de la base de datos y fuera del
+    # disco del contenedor —que en Render es efimero y perdia los comprobantes
+    # en cada despliegue—. No hay URL publica: se accede con enlace firmado de
+    # vida corta que emite GET /api/bajas/<id>/archivo/ (RS-005).
+    archivo_respaldo = models.FileField(
+        upload_to=ruta_respaldo_retiro,
+        storage=obtener_almacenamiento_respaldos,
+    )
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default=PENDIENTE)
     fecha_registro = models.DateTimeField(auto_now_add=True)
     usuario = models.ForeignKey(

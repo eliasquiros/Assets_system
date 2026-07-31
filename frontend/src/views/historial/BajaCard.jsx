@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Badge } from '../../components/Badge'
+import { useToast } from '../../context/ToastContext'
+import { useEnlaceArchivo } from '../../hooks/useBajas'
 import { fmtDate, fmtRemaining } from '../../lib/date'
 import styles from './BajaCard.module.css'
 
@@ -8,6 +10,22 @@ export function BajaCard({ baja, now }) {
   const isRevertida = baja.estado === 'Revertida'
   const estadoLabel = baja.estado === 'Definitiva' ? 'Baja definitiva' : baja.estado
   const remaining = baja.venceTs ? fmtRemaining(baja.venceTs - now) : ''
+  const { showToast } = useToast()
+  const enlace = useEnlaceArchivo()
+
+  async function verComprobante() {
+    // La pestaña se abre YA, dentro del gesto del usuario: hacerlo después del
+    // await la convierte en un popup y el navegador la bloquea.
+    const pestana = window.open('', '_blank', 'noopener')
+    try {
+      const { url } = await enlace.mutateAsync(baja.id)
+      if (pestana) pestana.location = url
+      else window.location.assign(url)
+    } catch {
+      pestana?.close()
+      showToast('No se pudo abrir el comprobante.', 'error')
+    }
+  }
 
   return (
     <div className={styles.card}>
@@ -34,6 +52,22 @@ export function BajaCard({ baja, now }) {
           <div><div className={styles.gridLabel}>Registrada</div><div className={`mono ${styles.gridValue}`}>{fmtDate(baja.fechaRegistro)}</div></div>
           <div><div className={styles.gridLabel}>Responsable</div><div className={styles.gridValue}>{baja.user}</div></div>
         </div>
+        {/* El comprobante es obligatorio (RN-002.2), así que siempre hay uno
+            que consultar; el enlace se pide al pulsar porque caduca. */}
+        {baja.archivoNombre && (
+          <button
+            type="button"
+            className={styles.comprobante}
+            onClick={verComprobante}
+            disabled={enlace.isPending}
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M14 3v5h5" />
+              <path d="M19 8v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7Z" />
+            </svg>
+            {enlace.isPending ? 'Abriendo…' : `Ver comprobante · ${baja.archivoNombre}`}
+          </button>
+        )}
         {isPendiente && (
           <div className={styles.pending}>
             <span>Periodo de gracia · Vence en {remaining}</span>

@@ -18,3 +18,10 @@ export function registrarBaja(datos, { token } = {}) {
 export function revertirBaja(id, { token } = {}) {
   return apiFetch(`/bajas/${id}/revertir/`, { method: 'POST', token })
 }
+
+// El comprobante vive en un bucket privado: no hay URL fija que guardar. El
+// backend firma un enlace de vida corta en el momento, así que se pide al
+// abrirlo y no se cachea (RS-005).
+export function obtenerEnlaceArchivo(id, { token } = {}) {
+  return apiFetch(`/bajas/${id}/archivo/`, { token })
+}
