@@ -77,29 +77,35 @@ describe('BajaCard', () => {
 
   it('opens the comprobante in a new tab with the link the backend signs', async () => {
     // El enlace caduca, así que se pide al pulsar y nunca se guarda en la fila.
-    const pestana = { location: '', close: vi.fn() }
-    vi.spyOn(window, 'open').mockReturnValue(pestana)
+    // 'noopener' hace que el navegador SIEMPRE devuelva null (Chrome/Firefox/
+    // Safari) — el mock refleja eso para no ocultar el bug que esto tuvo.
+    vi.spyOn(window, 'open').mockReturnValue(null)
     renderCard(CON_COMPROBANTE)
 
     await userEvent.click(screen.getByRole('button', { name: 'Ver documento' }))
 
     expect(mutateAsync).toHaveBeenCalledWith('BJ-2026-030')
-    expect(pestana.location).toBe('https://bucket/firmado?token=abc')
     // La pestaña se abre en el gesto del usuario, antes de esperar la firma:
-    // hacerlo después la convierte en un popup y el navegador la bloquea.
-    expect(window.open).toHaveBeenCalledWith('', '_blank', 'noopener')
+    // hacerlo después la convierte en un popup y el navegador la bloquea. Sin
+    // una referencia utilizable, se reapunta por nombre a la misma pestaña.
+    const target = 'comprobante-BJ-2026-030'
+    expect(window.open).toHaveBeenNthCalledWith(1, '', target, 'noopener')
+    expect(window.open).toHaveBeenNthCalledWith(2, 'https://bucket/firmado?token=abc', target, 'noopener')
   })
 
-  it('closes the tab and warns when the link cannot be issued', async () => {
-    const pestana = { location: '', close: vi.fn() }
-    vi.spyOn(window, 'open').mockReturnValue(pestana)
+  it('warns when the link cannot be issued', async () => {
+    // El spy sobre window.open persiste entre tests de este archivo (no hay
+    // restoreMocks global): se limpia el historial de llamadas para que el
+    // conteo de abajo sea el de este test, no el acumulado de los anteriores.
+    vi.spyOn(window, 'open').mockReturnValue(null).mockClear()
     mutateAsync.mockRejectedValue(new Error('502'))
     renderCard(CON_COMPROBANTE)
 
     await userEvent.click(screen.getByRole('button', { name: 'Ver documento' }))
 
-    // Dejar una pestaña en blanco abierta parece que el archivo no existe.
-    expect(pestana.close).toHaveBeenCalled()
+    // Sin URL no hay una segunda llamada a window.open: la pestaña en blanco
+    // (ya abierta por nombre) queda tal cual, sin apuntar a nada roto.
+    expect(window.open).toHaveBeenCalledTimes(1)
     expect(showToast).toHaveBeenCalledWith('No se pudo abrir el comprobante.', 'error')
   })
 
