@@ -52,7 +52,7 @@
   text-transform: uppercase; letter-spacing: .075em;
   margin-bottom: 3px;
 }
-.gridValue { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink); }
+.gridValue { font-size: 13.5px; color: var(--ink); }
 
 /* ---- Periodo de gracia --------------------------------------------------- */
 /* El unico bloque ambar de la app: marca la ventana en la que todavia se puede
@@ -78,10 +78,11 @@
 .pending a:hover { text-decoration-color: currentColor; }
 
 /* Acceso al comprobante: presente en toda baja porque el respaldo es
-   obligatorio. Es un link, no una acción principal de la tarjeta — a la par
-   del responsable, mismo tamaño de texto, sin caja ni fondo propios. */
+   obligatorio. Columna propia del grid, con su propio gridLabel arriba — no
+   comparte celda con Responsable. Es un link, no una acción principal de la
+   tarjeta: sin caja ni fondo propios. */
 .comprobante {
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: 5px;
   padding: 0;
   background: none;
   border: none;

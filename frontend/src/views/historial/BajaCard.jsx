@@ -56,28 +56,26 @@ export function BajaCard({ baja, now }) {
         <div className={styles.grid}>
           <div><div className={styles.gridLabel}>Fecha efectiva</div><div className={`mono ${styles.gridValue}`}>{fmtDate(baja.fechaEfectiva)}</div></div>
           <div><div className={styles.gridLabel}>Registrada</div><div className={`mono ${styles.gridValue}`}>{fmtDate(baja.fechaRegistro)}</div></div>
-          <div>
-            <div className={styles.gridLabel}>Responsable</div>
-            <div className={styles.gridValue}>
-              {baja.user}
-              {/* El comprobante es obligatorio (RN-002.2), así que siempre hay
-                  uno que consultar; el enlace se pide al pulsar porque caduca. */}
-              {baja.archivoNombre && (
-                <button
-                  type="button"
-                  className={styles.comprobante}
-                  onClick={verComprobante}
-                  disabled={enlace.isPending}
-                >
-                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M14 3v5h5" />
-                    <path d="M19 8v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7Z" />
-                  </svg>
-                  {enlace.isPending ? 'Abriendo…' : 'Documento'}
-                </button>
-              )}
+          <div><div className={styles.gridLabel}>Responsable</div><div className={styles.gridValue}>{baja.user}</div></div>
+          {/* El comprobante es obligatorio (RN-002.2), así que siempre hay uno
+              que consultar; el enlace se pide al pulsar porque caduca. */}
+          {baja.archivoNombre && (
+            <div>
+              <div className={styles.gridLabel}>Comprobante</div>
+              <button
+                type="button"
+                className={styles.comprobante}
+                onClick={verComprobante}
+                disabled={enlace.isPending}
+              >
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M14 3v5h5" />
+                  <path d="M19 8v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7Z" />
+                </svg>
+                {enlace.isPending ? 'Abriendo…' : 'Ver documento'}
+              </button>
             </div>
-          </div>
+          )}
         </div>
         {isPendiente && (
           <div className={styles.pending}>

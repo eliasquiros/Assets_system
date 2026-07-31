@@ -81,7 +81,7 @@ describe('BajaCard', () => {
     vi.spyOn(window, 'open').mockReturnValue(pestana)
     renderCard(CON_COMPROBANTE)
 
-    await userEvent.click(screen.getByRole('button', { name: 'Documento' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Ver documento' }))
 
     expect(mutateAsync).toHaveBeenCalledWith('BJ-2026-030')
     expect(pestana.location).toBe('https://bucket/firmado?token=abc')
@@ -96,7 +96,7 @@ describe('BajaCard', () => {
     mutateAsync.mockRejectedValue(new Error('502'))
     renderCard(CON_COMPROBANTE)
 
-    await userEvent.click(screen.getByRole('button', { name: 'Documento' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Ver documento' }))
 
     // Dejar una pestaña en blanco abierta parece que el archivo no existe.
     expect(pestana.close).toHaveBeenCalled()
@@ -105,7 +105,7 @@ describe('BajaCard', () => {
 
   it('does not offer the comprobante for bajas registered before the bucket existed', () => {
     renderCard({ ...CON_COMPROBANTE, archivoNombre: '' })
-    expect(screen.queryByRole('button', { name: 'Documento' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ver documento' })).not.toBeInTheDocument()
   })
 
   it('labels a definitiva baja without the countdown or revert link', () => {
