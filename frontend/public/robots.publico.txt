@@ -1,0 +1,9 @@
+# www.acticr.com — sitio publico de la marca.
+# Se sirve solo en este host; el resto de subdominios recibe robots.privado.txt.
+User-agent: *
+Allow: /
+
+# El login de cada empresa no es contenido publico.
+Disallow: /login
+
+Sitemap: https://www.acticr.com/sitemap.xml

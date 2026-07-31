@@ -82,10 +82,10 @@ export function AccesoModal({ onCerrar }) {
           </p>
 
           <div className={s.modalActions}>
-            <button type="button" className={`${s.btn} ${s.btnQuiet}`} onClick={onCerrar}>
+            <button type="button" className={s.btn} onClick={onCerrar}>
               Cancelar
             </button>
-            <button type="submit" className={`${s.btn} ${s.btnDark}`}>
+            <button type="submit" className={`${s.btn} ${s.btnSolid}`}>
               Continuar
             </button>
           </div>

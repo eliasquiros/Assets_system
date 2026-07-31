@@ -34,6 +34,9 @@ export function App() {
           <Route path="/privacidad" element={<PoliticaPrivacidadView />} />
           <Route path="/terminos" element={<TerminosServicioView />} />
           <Route path="/cookies" element={<PoliticaCookiesView />} />
+          {/* Sin esto una URL inventada devuelve 200 con la pagina en blanco, y
+              los buscadores acaban indexando direcciones vacias del dominio. */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     )

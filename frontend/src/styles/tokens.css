@@ -21,7 +21,7 @@
   --surface-sunk: #FAFAF8;
 
   /* Tinta. Todos cumplen AA (>=4.5:1) sobre --surface. */
-  --ink: #16181C;      /* titulos, texto principal   ~17:1 */
+  --ink: #020307;      /* titulos, texto principal   ~17:1 */
   --ink-2: #383D45;    /* texto secundario           ~10:1 */
   --ink-3: #5A5F68;    /* apoyo / muted              ~6.5:1 */
   --ink-4: #74797F;    /* microetiquetas             ~4.6:1 */

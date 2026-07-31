@@ -29,8 +29,8 @@
   font-weight: 500;
   box-shadow: var(--sh-raise);
 }
-.primary:hover:not(:disabled) { background: #24272D; }
-.primary:active:not(:disabled) { background: #0F1114; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .3); }
+.primary:hover:not(:disabled) { background: #14171D; }
+.primary:active:not(:disabled) { background: #000; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .3); }
 
 /* ---- Secundario ---------------------------------------------------------- */
 .secondary {

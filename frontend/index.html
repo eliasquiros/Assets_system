@@ -4,15 +4,48 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#16181C" />
-    <meta name="description" content="Acticr — Sistema de Gestión de Activos: inventario, depreciación, retiros y reportes contables." />
+    <meta name="theme-color" content="#020307" />
+    <meta name="description" content="Registro, depreciación automática y reportes de auditoría de los activos fijos de su empresa, con los requisitos que Tributación exige. Software costarricense." />
 
-    <!-- Geist / Geist Mono. preconnect abre la conexión antes de que el CSS
-         pida la fuente; display=swap evita el texto invisible mientras carga. -->
+    <!-- Valores de partida: cada vista los reescribe con useMetaPagina segun la
+         ruta, para que la landing y los documentos legales no compartan titulo,
+         descripcion ni canonical. -->
+    <link rel="canonical" href="https://www.acticr.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Acticr" />
+    <meta property="og:locale" content="es_CR" />
+    <meta property="og:url" content="https://www.acticr.com/" />
+    <meta property="og:title" content="Acticr — Gestión de activos fijos en Costa Rica" />
+    <meta property="og:description" content="Registro, depreciación automática y reportes de auditoría de los activos fijos de su empresa, con los requisitos que Tributación exige." />
+    <meta property="og:image" content="https://www.acticr.com/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Acticr — Todos tus activos en un mismo lugar." />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Acticr",
+        "url": "https://www.acticr.com/",
+        "logo": "https://www.acticr.com/favicon.svg",
+        "description": "Sistema costarricense de gestión de activos fijos: registro, depreciación automática y reportes de auditoría.",
+        "areaServed": "CR"
+      }
+    </script>
+
+    <!-- Geist / Geist Mono para la aplicación; Bodoni Moda / Jost para la
+         landing pública. preconnect abre la conexión antes de que el CSS pida
+         la fuente; display=swap evita el texto invisible mientras carga. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Jost:wght@300;400;500&display=swap"
       rel="stylesheet"
     />
 

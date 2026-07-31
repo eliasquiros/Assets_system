@@ -1,10 +1,16 @@
 import { Link } from 'react-router-dom'
+import { useMetaPagina } from '../../hooks/useMetaPagina'
 import s from './LegalLayout.module.css'
 
 /* Armazon compartido por los 3 documentos legales (privacidad, terminos,
    cookies). Vive fuera de la app autenticada: se monta tanto en el host de
    marca (www) como en el subdominio de cualquier empresa, sin sesion. */
-export function LegalLayout({ titulo, actualizado, children }) {
+export function LegalLayout({ titulo, tituloMeta, descripcion, actualizado, children }) {
+  // El mismo documento se sirve desde todos los subdominios; el canonical del
+  // hook lo consolida en la direccion de www para que los buscadores no lo
+  // cuenten como contenido duplicado.
+  useMetaPagina({ titulo: `${tituloMeta ?? titulo} — Acticr`, descripcion })
+
   return (
     <div className={s.page}>
       <header className={s.nav}>
