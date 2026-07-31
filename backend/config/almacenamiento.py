@@ -14,6 +14,13 @@ tenant (ver `ruta_respaldo_retiro` en assets/models.py). La clave service_role
 salta las policies de RLS de Storage, de modo que la unica frontera real es la
 que aplica la vista antes de firmar — por eso la vista busca el retiro dentro
 del schema activo y jamas acepta una ruta que venga del cliente.
+
+Dos guardas mas, fail-closed como el resto del proyecto: SUPABASE_URL tiene que
+ser https (la clave service_role viaja en Authorization en cada peticion) y el
+Content-Type que se sube al bucket SIEMPRE se deriva de la extension ya
+validada, nunca del que declara el cliente en el multipart — sin esto, un
+archivo "factura.pdf" con Content-Type: text/html serviria como HTML al abrir
+el enlace firmado (XSS almacenado, RS-005).
 """
 import json
 import mimetypes
@@ -63,6 +70,16 @@ class AlmacenamientoSupabase(Storage):
                 'Falta configuracion de Supabase Storage: se requieren '
                 'SUPABASE_URL, SUPABASE_SERVICE_KEY y SUPABASE_BUCKET_RESPALDOS.'
             )
+        # Falla cerrado: la clave service_role viaja en la cabecera Authorization
+        # de CADA peticion (subida, firma, lectura). Un SUPABASE_URL en http://
+        # por error de copiado mandaria esa clave —acceso total al bucket, salta
+        # RLS— en texto plano. Mismo criterio que validar_conexion_db con el
+        # puerto del pooler: un typo de un caracter no debe degradar en silencio.
+        if not self.url_proyecto.startswith('https://'):
+            raise ImproperlyConfigured(
+                f'SUPABASE_URL debe empezar con https:// (recibido: {self.url_proyecto!r}). '
+                'Sin TLS, la clave service_role viajaria en texto plano en cada peticion.'
+            )
 
     # -- infraestructura ---------------------------------------------------
     def _url_api(self, sufijo):
@@ -92,9 +109,14 @@ class AlmacenamientoSupabase(Storage):
     def _save(self, name, content):
         content.seek(0)
         datos = content.read()
-        tipo = getattr(content, 'content_type', None) or (
-            mimetypes.guess_type(name)[0] or 'application/octet-stream'
-        )
+        # NUNCA content.content_type: es la cabecera Content-Type que declaro el
+        # cliente en el multipart, no verificada contra el contenido real. Un
+        # archivo "factura.pdf" con Content-Type: text/html y un <script> dentro
+        # quedaria servido por Supabase con ESE content-type, y el navegador de
+        # quien abra el enlace firmado lo ejecutaria como HTML (XSS almacenado).
+        # El tipo se deriva siempre de la extension ya validada en assets/retiros
+        # (_validar_archivo solo permite pdf/jpg/jpeg/png/webp).
+        tipo = mimetypes.guess_type(name)[0] or 'application/octet-stream'
         estado, cuerpo, _ = self._peticion(
             'POST', f'object/{self.bucket}/{self._ruta_objeto(name)}',
             cuerpo=datos, content_type=tipo, timeout=TIMEOUT_SUBIDA,

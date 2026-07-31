@@ -71,6 +71,17 @@ class ConstruirAlmacenamientoTest(SimpleTestCase):
         with self.assertRaises(ImproperlyConfigured):
             AlmacenamientoSupabase(bucket='', url_proyecto='https://x.co', clave='k')
 
+    def test_rechaza_una_url_sin_https(self):
+        # La clave service_role viaja en Authorization en cada peticion; sin
+        # TLS iria en texto plano. Un typo de un caracter (http en vez de
+        # https) no puede degradar en silencio.
+        with self.assertRaises(ImproperlyConfigured):
+            AlmacenamientoSupabase(bucket='b', url_proyecto='http://proyecto.supabase.co', clave='k')
+
+    def test_construir_almacenamiento_tambien_falla_cerrado_sin_https(self):
+        with self.assertRaises(ImproperlyConfigured):
+            construir_almacenamiento({**ENTORNO, 'SUPABASE_URL': 'http://proyecto.supabase.co'})
+
 
 class SubidaTest(SimpleTestCase):
     def test_sube_al_bucket_con_la_clave_en_la_cabecera(self):
@@ -97,6 +108,23 @@ class SubidaTest(SimpleTestCase):
             _almacenamiento()._save('respaldos_retiro/e/u/acta final.pdf', ContentFile(b'x'))
 
         self.assertIn('acta%20final.pdf', urlopen.call_args[0][0].full_url)
+
+    def test_ignora_el_content_type_que_declara_el_cliente(self):
+        # El Content-Type de un multipart lo pone quien sube el archivo, no
+        # Django: un "factura.pdf" con Content-Type: text/html y un <script>
+        # dentro quedaria servido por Supabase con ESE content-type, y el
+        # navegador de quien abra el enlace firmado lo ejecutaria como HTML
+        # (XSS almacenado). El tipo real SIEMPRE sale de la extension ya
+        # validada (assets/retiros._validar_archivo), nunca de lo declarado.
+        archivo = ContentFile(b'<script>alert(1)</script>', name='acta.pdf')
+        archivo.content_type = 'text/html'  # lo que declararia un cliente malicioso
+
+        with patch('config.almacenamiento.peticiones.urlopen') as urlopen:
+            urlopen.return_value = RespuestaFalsa(200, b'{}')
+            _almacenamiento()._save('respaldos_retiro/e/u/acta.pdf', archivo)
+
+        peticion = urlopen.call_args[0][0]
+        self.assertEqual(peticion.get_header('Content-type'), 'application/pdf')
 
     def test_un_rechazo_de_supabase_no_pasa_por_exito(self):
         # Lo peligroso seria devolver el nombre igualmente: la baja quedaria
