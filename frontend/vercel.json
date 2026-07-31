@@ -1,6 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
+    {
+      "source": "/robots.txt",
+      "has": [{ "type": "host", "value": "www.acticr.com" }],
+      "destination": "/robots.publico.txt"
+    },
+    { "source": "/robots.txt", "destination": "/robots.privado.txt" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

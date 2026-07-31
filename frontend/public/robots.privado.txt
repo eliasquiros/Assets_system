@@ -1,0 +1,4 @@
+# Subdominio de una empresa (*.acticr.com): aqui vive su aplicacion privada.
+# No hay nada que indexar y el login no debe aparecer en buscadores.
+User-agent: *
+Disallow: /

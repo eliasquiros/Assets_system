@@ -4,6 +4,7 @@ export function PoliticaCookiesView() {
   return (
     <LegalLayout
       titulo="Política de Cookies"
+      descripcion="Qué cookies utiliza Acticr, para qué sirven y cómo se gestionan. Solo se emplean cookies estrictamente necesarias para la sesión."
       actualizado="26 de julio de 2026"
     >
       <section>

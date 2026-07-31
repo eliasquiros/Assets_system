@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useMetaPagina } from '../../hooks/useMetaPagina'
 import { useReveal } from '../../hooks/useReveal'
 import { AccesoModal } from './AccesoModal'
 import s from './LandingView.module.css'
@@ -73,6 +74,11 @@ function IconoWhatsApp() {
 export function LandingView() {
   const contenedor = useReveal()
   const [modalAbierto, setModalAbierto] = useState(false)
+
+  useMetaPagina({
+    titulo: 'Acticr — Gestión de activos fijos en Costa Rica',
+    descripcion: 'Registro, depreciación automática y reportes de auditoría de los activos fijos de su empresa, con los requisitos que Tributación exige. Software costarricense.',
+  })
 
   return (
     <div className={s.page} ref={contenedor}>

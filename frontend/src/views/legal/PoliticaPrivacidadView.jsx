@@ -6,6 +6,8 @@ export function PoliticaPrivacidadView() {
   return (
     <LegalLayout
       titulo="Política de Privacidad y Protección de Datos Personales"
+      tituloMeta="Política de Privacidad"
+      descripcion="Cómo Acticr trata los datos personales de sus usuarios y de los activos de cada empresa, conforme a la Ley N.º 8968 de Costa Rica."
       actualizado="26 de julio de 2026"
     >
       <section>

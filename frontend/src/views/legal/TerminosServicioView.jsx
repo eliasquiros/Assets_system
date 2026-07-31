@@ -6,6 +6,8 @@ export function TerminosServicioView() {
   return (
     <LegalLayout
       titulo="Términos y Condiciones de Servicio"
+      tituloMeta="Términos y Condiciones"
+      descripcion="Condiciones de uso del sistema de gestión de activos fijos Acticr: alcance del servicio, obligaciones de las partes y responsabilidad."
       actualizado="26 de julio de 2026"
     >
       <section>
