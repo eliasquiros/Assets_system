@@ -9,7 +9,7 @@
 
 .toast {
   display: flex; align-items: center; gap: 11px;
-  background: var(--ink);
+  background: var(--chrome);
   color: #F4F4F3;
   border-radius: var(--r-md);
   padding: 12px 16px 12px 13px;

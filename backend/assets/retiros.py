@@ -6,7 +6,7 @@ bajas.js, views/historial/*):
     GET  /api/bajas/                -> lista de bajas (mas reciente primero)
     POST /api/bajas/                -> registra una baja (multipart, con archivo)
     POST /api/bajas/<id>/revertir/  -> revierte una baja dentro del periodo de gracia
-    GET  /api/bajas/<id>/archivo/   -> enlace firmado y temporal al comprobante
+    GET  /api/bajas/<id>/archivo/   -> URL (del propio backend) para ver el comprobante
 
 Autenticacion/permiso heredados de la config global (CookieJWTAuthentication +
 IsAuthenticated); el aislamiento entre empresas lo da el schema fijado por
@@ -30,7 +30,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from config.almacenamiento import TTL_ENLACE_SEGUNDOS, ErrorDeAlmacenamiento
+from config.almacenamiento import ErrorDeAlmacenamiento
 
 from .models import Activo, Movimiento, Retiro
 
@@ -176,63 +176,45 @@ class RetiroListCreateView(APIView):
 
 
 class RetiroArchivoView(APIView):
-    """GET /api/bajas/<id>/archivo/ — enlace firmado y temporal al comprobante.
+    """GET /api/bajas/<id>/archivo/ — URL para ver el comprobante.
 
     El bucket es privado y la clave service_role del backend salta las policies
     de Storage, asi que la unica frontera entre empresas es esta vista: el
     retiro se busca en el schema que fijo TenantMainMiddleware, de modo que
     pedir el id de una baja de otra empresa devuelve 404. La ruta del objeto
     jamas se acepta del cliente — se lee del registro— para que nadie pueda
-    pedir la firma de una ruta arbitraria del bucket.
+    pedir el contenido de una ruta arbitraria del bucket.
 
-    Se emite una firma nueva en cada peticion en lugar de guardarla: un enlace
-    almacenado sobrevive a la sesion que lo pidio, y este caduca en minutos.
+    Se devuelve siempre la URL del propio backend (RetiroArchivoContenidoView),
+    nunca un enlace firmado de Supabase: ese enlace expone el project-ref del
+    bucket sin necesidad, y el control de acceso ya lo da la sesion, igual que
+    cualquier otro endpoint de la API.
     """
 
     def get(self, request, id):
         retiro = get_object_or_404(Retiro, pk=id)
-        archivo = retiro.archivo_respaldo
-        if not archivo:
+        if not retiro.archivo_respaldo:
             return Response(
                 {'detail': 'La baja no tiene comprobante.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
-        # Se pregunta por la capacidad de firmar, no por el tipo de storage ni
-        # por si `.url()` falla: el almacenamiento local devuelve una ruta bajo
-        # MEDIA_URL que nadie sirve, asi que un enlace "valido" pero muerto.
-        firmar = getattr(archivo.storage, 'enlace_firmado', None)
-        if firmar is None:
-            # Desarrollo y tests: no hay nada que firmar porque no hay nada
-            # publicado. Se devuelve el endpoint que sirve el archivo con la
-            # sesion, para que el frontend no sepa donde esta guardado.
-            url = request.build_absolute_uri(
-                reverse('baja-archivo-contenido', args=[retiro.id]),
-            )
-            expira_en = None
-        else:
-            try:
-                url = firmar(archivo.name)
-            except ErrorDeAlmacenamiento:
-                return Response(
-                    {'detail': 'No se pudo generar el enlace al comprobante.'},
-                    status=status.HTTP_502_BAD_GATEWAY,
-                )
-            expira_en = TTL_ENLACE_SEGUNDOS
-
+        url = request.build_absolute_uri(
+            reverse('baja-archivo-contenido', args=[retiro.id]),
+        )
         return Response({
             'url': url,
-            'nombre': os.path.basename(archivo.name),
-            'expiraEn': expira_en,
+            'nombre': os.path.basename(retiro.archivo_respaldo.name),
+            'expiraEn': None,
         })
 
 
 class RetiroArchivoContenidoView(APIView):
     """GET /api/bajas/<id>/archivo/contenido/ — sirve el comprobante con sesion.
 
-    Es la contraparte del enlace firmado para cuando no hay bucket configurado
-    (desarrollo, tests). Aqui el archivo pasa por el backend, asi que el control
-    de acceso es la propia sesion y el schema del tenant.
+    El backend descarga el objeto de Supabase con la clave service_role y lo
+    entrega tal cual: el cliente nunca ve la URL ni el project-ref del bucket.
+    El control de acceso es la propia sesion mas el schema del tenant (ver
+    RetiroArchivoView).
     """
 
     def get(self, request, id):
@@ -249,9 +231,10 @@ class RetiroArchivoContenidoView(APIView):
                 {'detail': 'No se pudo leer el comprobante.'},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+        # Sin as_attachment: se abre inline (el boton dice "Ver documento", no
+        # "Descargar"), igual que hacia el enlace firmado de Supabase.
         return FileResponse(
-            contenido, as_attachment=True,
-            filename=os.path.basename(retiro.archivo_respaldo.name),
+            contenido, filename=os.path.basename(retiro.archivo_respaldo.name),
         )
 
 

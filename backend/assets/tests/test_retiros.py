@@ -30,7 +30,7 @@ from assets.models import Activo, Categoria, Localizacion, Movimiento, Retiro
 from assets.reportes import _agrupar_por_categoria
 from assets.retiros import TAMANO_MAX_ARCHIVO
 from assets.tareas import promover_retiros_definitivos
-from config.almacenamiento import TTL_ENLACE_SEGUNDOS, ErrorDeAlmacenamiento
+from config.almacenamiento import ErrorDeAlmacenamiento
 
 _MEDIA = tempfile.mkdtemp()
 
@@ -185,44 +185,31 @@ class RetiroTest(TenantTestCase):
         resp = anon.get(f'/api/bajas/{rid}/archivo/', HTTP_HOST=self.host)
         self.assertEqual(resp.status_code, 401)
 
-    def test_enlace_firmado_cuando_hay_bucket_configurado(self):
-        self._activo('COM-0018')
-        rid = self._registrar('COM-0018').json()['id']
-
-        firmada = 'https://proyecto.supabase.co/storage/v1/object/sign/b/x?token=abc'
-        with patch.object(FileSystemStorage, 'enlace_firmado', create=True, return_value=firmada):
-            resp = self.client.get(f'/api/bajas/{rid}/archivo/', HTTP_HOST=self.host)
-
-        self.assertEqual(resp.status_code, 200, resp.content)
-        cuerpo = resp.json()
-        self.assertEqual(cuerpo['url'], firmada)
-        self.assertEqual(cuerpo['nombre'], 'c.pdf')
-        # El enlace caduca: es para abrir el comprobante, no para repartirlo.
-        self.assertEqual(cuerpo['expiraEn'], TTL_ENLACE_SEGUNDOS)
-
-    def test_sin_bucket_el_enlace_apunta_al_endpoint_que_sirve_el_archivo(self):
-        # Desarrollo y tests: no hay nada firmado porque no hay nada publicado,
-        # y el frontend no tiene que enterarse de la diferencia.
+    def test_el_enlace_siempre_apunta_al_endpoint_que_sirve_el_archivo(self):
+        # Nunca se expone la URL firmada de Supabase (revela el project-ref
+        # del bucket sin necesidad): el backend sirve el contenido el mismo.
         self._activo('COM-0019')
         rid = self._registrar('COM-0019').json()['id']
         resp = self.client.get(f'/api/bajas/{rid}/archivo/', HTTP_HOST=self.host)
 
         self.assertEqual(resp.status_code, 200, resp.content)
         self.assertTrue(resp.json()['url'].endswith(f'/api/bajas/{rid}/archivo/contenido/'))
+        self.assertNotIn('supabase', resp.json()['url'])
         self.assertIsNone(resp.json()['expiraEn'])
 
         contenido = self.client.get(f'/api/bajas/{rid}/archivo/contenido/', HTTP_HOST=self.host)
         self.assertEqual(contenido.status_code, 200)
         self.assertEqual(b''.join(contenido.streaming_content), b'contenido')
+        # "Ver documento", no "Descargar": se abre inline, no como adjunto.
+        self.assertNotIn('attachment', contenido.headers.get('Content-Disposition', ''))
 
-    def test_un_fallo_del_bucket_al_firmar_devuelve_502_y_no_500(self):
+    def test_un_fallo_del_bucket_al_leer_devuelve_502_y_no_500(self):
         # La diferencia importa: 502 dice "vuelva a intentarlo", 500 dice "el
         # sistema esta roto". Que Supabase no responda no es lo segundo.
         self._activo('COM-0020')
         rid = self._registrar('COM-0020').json()['id']
-        with patch.object(FileSystemStorage, 'enlace_firmado', create=True,
-                          side_effect=ErrorDeAlmacenamiento('caido')):
-            resp = self.client.get(f'/api/bajas/{rid}/archivo/', HTTP_HOST=self.host)
+        with patch.object(FileSystemStorage, 'open', side_effect=ErrorDeAlmacenamiento('caido')):
+            resp = self.client.get(f'/api/bajas/{rid}/archivo/contenido/', HTTP_HOST=self.host)
         self.assertEqual(resp.status_code, 502)
 
     def test_si_el_bucket_falla_no_queda_una_baja_sin_comprobante(self):

@@ -1,3 +1,5 @@
+import { MarcaActicr } from '../components/MarcaActicr'
+import { ThemeToggle } from '../components/ThemeToggle'
 import { useAuth } from '../context/AuthContext'
 import styles from './AppHeader.module.css'
 
@@ -7,14 +9,8 @@ export function AppHeader() {
   return (
     <header className={styles.header}>
       <div className={styles.brand}>
-        {/* Marca: capas apiladas = inventario de activos. SVG inline en vez de
-            las iniciales "AF" en una caja — pesa lo mismo y escala nitido. */}
         <div className={styles.logo} aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 3 3 7.5l9 4.5 9-4.5L12 3Z" />
-            <path d="m3 12.5 9 4.5 9-4.5" />
-            <path d="m3 17 9 4.5 9-4.5" />
-          </svg>
+          <MarcaActicr width={20} />
         </div>
         <div>
           <div className={styles.title}>Acticr</div>
@@ -35,6 +31,7 @@ export function AppHeader() {
           </div>
           <div className={styles.avatar}>{iniciales}</div>
         </div>
+        <ThemeToggle />
         <button type="button" className={styles.logout} onClick={logout}>Salir</button>
       </div>
     </header>

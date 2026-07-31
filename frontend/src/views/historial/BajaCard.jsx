@@ -21,14 +21,17 @@ export function BajaCard({ baja, now }) {
 
   async function verComprobante() {
     // La pestaña se abre YA, dentro del gesto del usuario: hacerlo después del
-    // await la convierte en un popup y el navegador la bloquea.
-    const pestana = window.open('', '_blank', 'noopener')
+    // await la convierte en un popup y el navegador la bloquea. Con 'noopener'
+    // el navegador NUNCA devuelve una referencia utilizable (siempre null en
+    // Chrome/Firefox/Safari), así que no podemos guardarla ni navegarla ni
+    // cerrarla después — solo podemos volver a apuntar al mismo target por
+    // nombre, que el navegador resuelve contra la pestaña ya abierta.
+    const target = `comprobante-${baja.id}`
+    window.open('', target, 'noopener')
     try {
       const { url } = await enlace.mutateAsync(baja.id)
-      if (pestana) pestana.location = url
-      else window.location.assign(url)
+      window.open(url, target, 'noopener')
     } catch {
-      pestana?.close()
       showToast('No se pudo abrir el comprobante.', 'error')
     }
   }

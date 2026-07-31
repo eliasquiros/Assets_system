@@ -2,18 +2,8 @@ import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Button } from '../../components/Button'
+import { MarcaActicr } from '../../components/MarcaActicr'
 import styles from './LoginView.module.css'
-
-/* Marca de la app: capas apiladas = inventario de activos. */
-function Marca({ size = 22 }) {
-  return (
-    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3 3 7.5l9 4.5 9-4.5L12 3Z" />
-      <path d="m3 12.5 9 4.5 9-4.5" />
-      <path d="m3 17 9 4.5 9-4.5" />
-    </svg>
-  )
-}
 
 /* Lo que se destaca aca describe capacidades que el sistema realmente tiene
    (aislamiento por empresa, calculo automatico, datos en vivo); no son
@@ -80,7 +70,7 @@ export function LoginView() {
       <aside className={styles.aside} aria-hidden="true">
         <div className={styles.asideInner}>
           <div className={styles.asideBrand}>
-            <span className={styles.asideMark}><Marca size={20} /></span>
+            <span className={styles.asideMark}><MarcaActicr width={24} /></span>
             <span className={styles.asideName}>Acticr</span>
           </div>
           <p className={styles.asideLead}>
@@ -104,7 +94,7 @@ export function LoginView() {
       <main className={styles.formCol}>
         <form className={styles.card} onSubmit={handleSubmit}>
           <div className={styles.brand}>
-            <div className={styles.logo}><Marca size={22} /></div>
+            <div className={styles.logo}><MarcaActicr width={26} /></div>
             <div>
               <div className={styles.title}>Acticr</div>
               <div className={styles.subtitle}>Sistema de Gestión de Activos</div>

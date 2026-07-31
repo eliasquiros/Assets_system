@@ -68,7 +68,7 @@
    con las tarjetas blancas de abajo las pone primero en el orden de lectura. */
 .values {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;
-  background: var(--ink);
+  background: var(--chrome);
   border-radius: var(--r-lg);
   padding: 18px 20px;
   box-shadow: var(--sh-2), inset 0 1px 0 rgba(255, 255, 255, .07);

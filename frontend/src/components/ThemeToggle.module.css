@@ -1,0 +1,14 @@
+/* Mismo lenguaje visual que .avatar/.logo del AppHeader: circulo translucido
+   sobre el chrome oscuro, funciona igual en claro y en oscuro sin variables
+   nuevas porque el chrome ya se resuelve por --chrome. */
+.toggle {
+  width: 32px; height: 32px; border-radius: var(--r-full); flex: none;
+  background: rgba(255, 255, 255, .08);
+  border: 1px solid rgba(255, 255, 255, .12);
+  color: #E7E8EA;
+  display: flex; align-items: center; justify-content: center;
+  transition: background-color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.toggle:hover { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .22); color: #fff; }
+.toggle:active { transform: translateY(1px); }
+.toggle:focus-visible { outline: 2px solid rgba(255, 255, 255, .55); outline-offset: 2px; }
